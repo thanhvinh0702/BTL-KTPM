@@ -26,15 +26,16 @@ public class JwtUtil {
         this.expirationTime = expirationTime;
     }
 
-    public String generateToken(String email, String firstName, String lastName, Role role, String phoneNumber) {
+    public String generateToken(Long id, String email, String firstName, String lastName, Role role, String phoneNumber) {
         Map<String, Object> claims = new HashMap<>();
+        claims.put("email", email);
         claims.put("firstName", firstName);
         claims.put("lastName", lastName);
         claims.put("role", role.name());
         claims.put("phoneNumber", phoneNumber);
         return Jwts.builder()
                 .setClaims(claims)
-                .setSubject(email)
+                .setSubject(id.toString())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
                 .signWith(key, SignatureAlgorithm.HS256)

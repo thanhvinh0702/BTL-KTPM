@@ -40,6 +40,7 @@ public class UserService {
         Optional<User> userOpt = repository.findByEmail(email);
         if (userOpt.isPresent() && encoder.matches(password, userOpt.get().getPassword())) {
             return jwtUtil.generateToken(
+                    userOpt.get().getId(),
                     email,
                     userOpt.get().getFirstName(),
                     userOpt.get().getLastName(),
