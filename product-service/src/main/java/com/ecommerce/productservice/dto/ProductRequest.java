@@ -10,5 +10,4 @@ public class ProductRequest {
     private String imageUrl;
     private Double price;
     private Integer quantity;
-    private Long ownerId;
 }

@@ -31,7 +31,8 @@ public class ProductController {
     }
 
     @PostMapping
-    public ResponseEntity<Product> createProduct(@RequestBody ProductRequest productRequest) {
+    public ResponseEntity<Product> createProduct(@RequestBody ProductRequest productRequest,
+                                                 @RequestHeader("x-user-id") Long userId) {
         Product product = Product.builder()
                 .name(productRequest.getName())
                 .categoryName(productRequest.getCategoryName())
@@ -39,18 +40,21 @@ public class ProductController {
                 .imageUrl(productRequest.getImageUrl())
                 .price(productRequest.getPrice())
                 .quantity(productRequest.getQuantity())
-                .ownerId(productRequest.getOwnerId())
+                .ownerId(userId)
                 .build();
         return new ResponseEntity<>(productService.createProduct(product), HttpStatus.CREATED);
     }
 
     @PutMapping("/{productId}")
-    public ResponseEntity<Product> updateProduct(@PathVariable Long productId, @RequestBody ProductRequest productRequest) {
-        return ResponseEntity.ok(productService.updateProduct(productId, productRequest));
+    public ResponseEntity<Product> updateProduct(@PathVariable Long productId,
+                                                 @RequestBody ProductRequest productRequest,
+                                                 @RequestHeader("x-user-id") Long userId) {
+        return ResponseEntity.ok(productService.updateProduct(productId, productRequest, userId));
     }
 
     @DeleteMapping("/{productId}")
-    public ResponseEntity<Product> deleteProduct(@PathVariable Long productId) {
-        return ResponseEntity.ok(productService.deleteProduct(productId));
+    public ResponseEntity<Product> deleteProduct(@PathVariable Long productId,
+                                                 @RequestHeader("x-user-id") Long userId) {
+        return ResponseEntity.ok(productService.deleteProduct(productId, userId));
     }
 }

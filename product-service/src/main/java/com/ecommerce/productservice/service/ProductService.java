@@ -3,6 +3,7 @@ package com.ecommerce.productservice.service;
 import com.ecommerce.productservice.dto.ProductRequest;
 import com.ecommerce.productservice.model.Product;
 import com.ecommerce.productservice.repository.ProductRepository;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -38,7 +39,8 @@ public class ProductService {
         return productRepository.save(product);
     }
 
-    public Product updateProduct(Long productId, ProductRequest productRequest) {
+    @PreAuthorize("@productSecurity.isOwner(#productId, #userId)")
+    public Product updateProduct(Long productId, ProductRequest productRequest, Long userId) {
         Product existedProduct = productRepository.findById(productId)
                 .orElseThrow(() -> new NoSuchElementException("Product with id " + productId + " not found!"));
         if (productRequest.getCategoryName() != null) {
@@ -62,7 +64,8 @@ public class ProductService {
         return productRepository.save(existedProduct);
     }
 
-    public Product deleteProduct(Long productId) {
+    @PreAuthorize("@productSecurity.isOwner(#productId, #userId)")
+    public Product deleteProduct(Long productId, Long userId) {
         Product existedProduct = productRepository.findById(productId)
                 .orElseThrow(() -> new NoSuchElementException("Product with id " + productId + " not found!"));
         productRepository.deleteById(productId);
