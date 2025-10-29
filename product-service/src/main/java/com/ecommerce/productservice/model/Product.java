@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Entity
 @Data
 @NoArgsConstructor
@@ -23,7 +25,7 @@ public class Product {
     private String description;
     @Column(name = "image_url")
     private String imageUrl;
-    @Column(name = "is_available", nullable = false)
+    @Column(name = "is_available", nullable = false, columnDefinition = "BOOLEAN DEFAULT true")
     private boolean isAvailable = true;
     @Column(nullable = false)
     private Double price;
@@ -31,4 +33,6 @@ public class Product {
     private Integer quantity = 0;
     @Column(name = "owner_id", nullable = false)
     private Long ownerId;
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Review> reviews;
 }
