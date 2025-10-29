@@ -51,6 +51,9 @@ public class ReviewService {
             existedReview.setComment(reviewRequest.getComment());
         }
         if (reviewRequest.getRating() != null) {
+            if (reviewRequest.getRating() < 1 || reviewRequest.getRating() > 5) {
+                throw new IllegalArgumentException("Review rating must be between 1 and 5");
+            }
             existedReview.setRating(reviewRequest.getRating());
         }
         return reviewRepository.save(existedReview);

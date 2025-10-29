@@ -3,8 +3,11 @@ package com.ecommerce.productservice.controller;
 import com.ecommerce.productservice.dto.ReviewRequest;
 import com.ecommerce.productservice.model.Review;
 import com.ecommerce.productservice.service.ReviewService;
+import com.ecommerce.productservice.validation.OnCreate;
+import com.ecommerce.productservice.validation.OnUpdate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -31,14 +34,14 @@ public class ReviewController {
 
     @PostMapping
     public ResponseEntity<Review> createReview(@PathVariable Long productId,
-                                               @RequestBody ReviewRequest reviewRequest,
+                                               @Validated(OnCreate.class) @RequestBody ReviewRequest reviewRequest,
                                                @RequestHeader("x-user-id") Long userId) {
         return new ResponseEntity<>(reviewService.createReview(productId, reviewRequest, userId), HttpStatus.CREATED);
     }
 
     @PutMapping("/{reviewId}")
     public ResponseEntity<Review> updateReview(@PathVariable Long reviewId,
-                                               @RequestBody ReviewRequest reviewRequest,
+                                               @Validated(OnUpdate.class) @RequestBody ReviewRequest reviewRequest,
                                                @RequestHeader("x-user-id") Long userId) {
         return ResponseEntity.ok(reviewService.updateReview(reviewId, reviewRequest, userId));
     }

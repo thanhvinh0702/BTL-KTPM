@@ -3,8 +3,11 @@ package com.ecommerce.productservice.controller;
 import com.ecommerce.productservice.dto.ProductRequest;
 import com.ecommerce.productservice.model.Product;
 import com.ecommerce.productservice.service.ProductService;
+import com.ecommerce.productservice.validation.OnCreate;
+import com.ecommerce.productservice.validation.OnUpdate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -31,7 +34,7 @@ public class ProductController {
     }
 
     @PostMapping
-    public ResponseEntity<Product> createProduct(@RequestBody ProductRequest productRequest,
+    public ResponseEntity<Product> createProduct(@Validated(OnCreate.class) @RequestBody ProductRequest productRequest,
                                                  @RequestHeader("x-user-id") Long userId) {
         Product product = Product.builder()
                 .name(productRequest.getName())
@@ -47,7 +50,7 @@ public class ProductController {
 
     @PutMapping("/{productId}")
     public ResponseEntity<Product> updateProduct(@PathVariable Long productId,
-                                                 @RequestBody ProductRequest productRequest,
+                                                 @Validated(OnUpdate.class) @RequestBody ProductRequest productRequest,
                                                  @RequestHeader("x-user-id") Long userId) {
         return ResponseEntity.ok(productService.updateProduct(productId, productRequest, userId));
     }
