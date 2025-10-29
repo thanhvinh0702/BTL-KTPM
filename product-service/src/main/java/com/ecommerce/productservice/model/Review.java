@@ -22,16 +22,22 @@ public class Review {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @Column(nullable = false)
     private String comment;
+
     @Column(nullable = false)
     private Integer rating;
+
     @Column(name = "user_id", nullable = false)
     private Long userId;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
     @JsonIgnore
