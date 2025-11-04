@@ -7,7 +7,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class ProductServiceApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(ProductServiceApplication.class, args);
+        System.setProperty("user.timezone", "Asia/Ho_Chi_Minh");
+        SpringApplication.run(ProductServiceApplication.class, args);
 	}
 
 }
