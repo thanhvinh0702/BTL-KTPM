@@ -1,10 +1,15 @@
 package com.ecommerce.cartservice.service;
 
-import com.ecommerce.cartservice.dto.AddProductRequest;
+import com.ecommerce.cartservice.client.ProductClient;
+import com.ecommerce.cartservice.dto.external.ProductResponse;
+import com.ecommerce.cartservice.dto.request.AddToCartRequest;
+import com.ecommerce.cartservice.dto.response.CartResponse;
+import com.ecommerce.cartservice.mapper.CartMapper;
 import com.ecommerce.cartservice.model.Cart;
 import com.ecommerce.cartservice.model.CartItem;
 import com.ecommerce.cartservice.repository.CartItemRepository;
 import com.ecommerce.cartservice.repository.CartRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -13,88 +18,151 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 public class CartService {
+
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
+    private final ProductClient productClient;
+    private final CartMapper cartMapper;
 
-    public Cart addProductToCart(AddProductRequest request){
+    /**
+     * Thêm sản phẩm vào giỏ hàng
+     * @param request
+     * @return
+     */
+    @Transactional
+    public CartResponse addProductToCart(AddToCartRequest request){
 
-        // Tìm cart theo userId
-        Optional<Cart> existingCartOpt = cartRepository.findByUserId(request.getUserId());
-        Cart cart = existingCartOpt.orElseGet(() -> {
-            Cart newCart = Cart.builder()
-                    .userId(request.getUserId())
-                    .totalAmount(0.0)
-                    .build();
-            return cartRepository.save(newCart);
-        });
+        // Find Cart by userId
+        Cart cart = cartRepository.findById(request.getCartId())
+                .orElseGet(() -> {
+                    Cart newCart = Cart.builder()
+                            .userId(request.getUserId())
+                            .totalAmount(0.0)
+                            .build();
+                    return cartRepository.save(newCart);
+                });
 
-        CartItem existingItem = cart.getItems().stream()
-                .filter(i -> i.getProductId().equals(request.getProductId()))
-                .findFirst()
-                .orElse(null);
+        // check if the product in the cart already exists
+        Optional<CartItem> existingItemOpt = cart.getItems().stream()
+                .filter(item -> item.getProductId().equals(request.getProductId()))
+                .findFirst();
 
-        if (existingItem != null) {
+        if (existingItemOpt.isPresent()) {
+            CartItem existingItem = existingItemOpt.get();
             existingItem.setQuantity(existingItem.getQuantity() + request.getQuantity());
-            existingItem.setSubtotal(existingItem.getQuantity() * existingItem.getPriceAtTime());
+            cartItemRepository.save(existingItem);
         } else {
+            // Call ProductService for pricing info
+            ProductResponse product = productClient.getProductById(request.getProductId());
+
             CartItem newItem = CartItem.builder()
-                    .productId(request.getProductId())
-                    .productName(request.getProductName())
-                    .priceAtTime(request.getPrice())
+                    .productId(product.getId())
+                    .productName(product.getName())
+                    .priceAtTime(product.getPrice())
                     .quantity(request.getQuantity())
-                    .subtotal(request.getPrice() * request.getQuantity())
                     .cart(cart)
                     .build();
+
+            cartItemRepository.save(newItem);
             cart.getItems().add(newItem);
         }
 
-        // Cập nhật tổng tiền
-        cart.setTotalAmount(cart.getItems().stream().mapToDouble(CartItem::getSubtotal).sum());
-        return cartRepository.save(cart);
+        // update total amount
+       double totalAmount = cart.getItems().stream()
+               .mapToDouble(item -> item.getPriceAtTime() * item.getQuantity())
+               .sum();
+        cart.setTotalAmount(totalAmount);
+
+        Cart savedCart = cartRepository.save(cart);
+        return cartMapper.toCartResponse(savedCart);
     }
 
-    public Cart changeProductQuantity(Long cartId, Long productId, int delta) {
-        Cart cart = getCartById(cartId);
+    /**
+     * Increase/decrease quantity of product in the cart
+     * @param cartId
+     * @param productId
+     * @param delta
+     * @return
+     */
+    @Transactional
+    public CartResponse changeProductQuantity(Long cartId, Long productId, int delta) {
+        Cart cart = cartRepository.findById(cartId)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
 
-        cart.getItems().forEach(item -> {
-            if (item.getProductId().equals(productId)) {
-                int newQty = item.getQuantity() + delta;
-                if (newQty <= 0) {
-                    cartItemRepository.removeProductFromCart(cartId, productId);
-                } else {
-                    item.setQuantity(newQty);
-                    item.setSubtotal(item.getPriceAtTime() * newQty);
-                }
-            }
-        });
+        CartItem item = cart.getItems().stream()
+                .filter(i -> i.getProductId().equals(productId))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Product not found in cart"));
 
-        // Nếu cart rỗng → xóa
-        if (cartItemRepository.countByCart_CartId(cartId) == 0) {
-            cartRepository.delete(cart);
-            return null;
+        int newQty = item.getQuantity() + delta;
+        if (newQty <= 0) {
+            cartItemRepository.delete(item);
+            cart.getItems().remove(item);
+        } else {
+            item.setQuantity(newQty);
+            cartItemRepository.save(item);
         }
 
-        // Cập nhật tổng tiền
-        cart.setTotalAmount(cart.getItems().stream().mapToDouble(CartItem::getSubtotal).sum());
-        return cartRepository.save(cart);
+        // Update total amount
+        double totalAmount = cart.getItems().stream()
+                .mapToDouble(i -> i.getPriceAtTime() * i.getQuantity())
+                .sum();
+        cart.setTotalAmount(totalAmount);
+        Cart savedCart = cartRepository.save(cart);
+
+        return cartMapper.toCartResponse(savedCart);
     }
 
-    public Cart getCartById(Long cartId) {
-        return cartRepository.findById(cartId)
-                .orElseThrow(() -> new RuntimeException("Cart not found with id " + cartId));
+    /**
+     * Delete a product from the cart
+     * @param cartId
+     * @return
+     */
+    @Transactional
+    public CartResponse removeProductFromCart(Long cartId, Long productId) {
+        Cart cart = cartRepository.findById(cartId)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
+
+        cart.getItems().removeIf(item -> item.getProductId().equals(productId));
+        cartItemRepository.deleteByCartIdAndProductId(cartId, productId);
+
+        double totalAmount = cart.getItems().stream()
+                .mapToDouble(i -> i.getPriceAtTime() * i.getQuantity())
+                .sum();
+        cart.setTotalAmount(totalAmount);
+
+        Cart savedCart = cartRepository.save(cart);
+        return cartMapper.toCartResponse(savedCart);
     }
 
-    public void removeProductFromCart(Long cartId, Long productId) {
-        cartItemRepository.removeProductFromCart(cartId, productId);
-        if (cartItemRepository.countByCart_CartId(cartId) == 0) {
-            cartRepository.deleteById(cartId);
-        }
-    }
-
+    /**
+     * empty all cart
+     */
+    @Transactional
     public void clearCart(Long cartId) {
-        cartItemRepository.removeAllProductsFromCart(cartId);
-        cartRepository.deleteById(cartId);
+        // Check
+        cartRepository.findById(cartId)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
+
+        // Delete all
+        cartItemRepository.deleteAllByCartId(cartId);
+
+        // update
+        Cart cart = cartRepository.findById(cartId).get();
+        cart.setTotalAmount(0.0);
+        cartRepository.save(cart);
     }
+
+
+    /**
+     * get cart info by ID
+     */
+    public CartResponse getCartById(Long cartId) {
+        Cart cart = cartRepository.findById(cartId)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
+        return cartMapper.toCartResponse(cart);
+    }
+
 }
 
 

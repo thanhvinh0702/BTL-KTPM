@@ -10,21 +10,25 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface CartItemRepository extends JpaRepository<CartItem, Long> {
-
+    /**
+     * Lấy danh sách item trong 1 giỏ hàng
+     */
     List<CartItem> findByCart_CartId(Long cartId);
 
-    // Xóa 1 sản phẩm khỏi giỏ hàng
-    @Transactional
+    /**
+     * xóa 1 sản pham khoi gio hang
+     */
     @Modifying
+    @Transactional
     @Query("DELETE FROM CartItem ci WHERE ci.cart.cartId = :cartId AND ci.productId = :productId")
-    void removeProductFromCart(@Param("cartId") Long cartId, @Param("productId") Long productId);
+    void deleteByCartIdAndProductId(@Param("cartId") Long cartId, @Param("productId") Long productId);
 
     // Xóa toàn bộ sản phẩm trong giỏ hàng
-    @Transactional
     @Modifying
+    @Transactional
     @Query("DELETE FROM CartItem ci WHERE ci.cart.cartId = :cartId")
-    void removeAllProductsFromCart(@Param("cartId") Long cartId);
+    void deleteAllByCartId(@Param("cartId") Long cartId);
 
-    // Đếm số sản phẩm còn lại trong giỏ hàng
+    // Đếm số sản phẩm trong giỏ hàng
     long countByCart_CartId(Long cartId);
 }
