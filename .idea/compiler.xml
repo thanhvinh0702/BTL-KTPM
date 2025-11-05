@@ -17,14 +17,18 @@
         <processorPath useClasspath="false">
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.42/lombok-1.18.42.jar" />
         </processorPath>
-        <module name="product-service (1)" />
-        <module name="product-service" />
-        <module name="product-service (2)" />
         <module name="cart-service" />
         <module name="payment-service" />
+        <module name="product-service (1)" />
+        <module name="product-service (2)" />
+        <module name="product-service" />
         <module name="user-service" />
+        <module name="shipping-service" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="order-service (1)" target="21" />
+    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
@@ -35,6 +39,7 @@
       <module name="product-service (1)" options="-parameters" />
       <module name="product-service (2)" options="-parameters" />
       <module name="service-registry" options="-parameters" />
+      <module name="shipping-service" options="-parameters" />
       <module name="user-service" options="-parameters" />
     </option>
   </component>
