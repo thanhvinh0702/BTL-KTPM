@@ -13,13 +13,13 @@ import com.ecommerce.orderservice.model.Orders;
 @Repository
 public interface OrderRepository extends JpaRepository<Orders, Integer> {
 
-    @Query("SELECT o FROM Orders o WHERE o.orderId = :orderId AND o.user.userId = :userId")
+    @Query("SELECT o FROM Orders o WHERE o.orderId = :orderId AND o.userId = :userId")
     Orders findByIdAndCustomerId(@Param("orderId") Integer orderId, @Param("userId") Integer userId);
 
     @Query("SELECT o FROM Orders o WHERE o.orderDate >= :date")
     List<Orders> findByOrderDateGreaterThanEqual(Date date);
 
-    @Query("SELECT o FROM Orders o WHERE  o.user.userId = :userId")
+    @Query("SELECT o FROM Orders o WHERE  o.userId = :userId")
     List<Orders> getAllOrderByUserId(@Param("userId") Integer userId);
 
 }

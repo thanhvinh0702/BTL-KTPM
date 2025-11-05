@@ -43,6 +43,9 @@ public class Orders {
     @Column(name = "total_amount")
     private double totalAmount;
 
+    @Column(name = "user_id")
+    private Long userId;
+
     @OneToMany( cascade = CascadeType.ALL,fetch = FetchType.LAZY)
     private List<OrderItem> orderItem= new ArrayList<>();
 
