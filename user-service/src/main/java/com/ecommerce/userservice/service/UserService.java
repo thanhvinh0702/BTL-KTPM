@@ -4,14 +4,17 @@ import com.ecommerce.userservice.dto.RegisterRequest;
 import com.ecommerce.userservice.model.User;
 import com.ecommerce.userservice.repository.UserRepository;
 import com.ecommerce.userservice.security.JwtUtil;
-import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class UserService {
     private final UserRepository repository;
     private final PasswordEncoder encoder;
@@ -48,5 +51,23 @@ public class UserService {
                     userOpt.get().getPhoneNumber());
         }
         throw new IllegalArgumentException("Invalid credentials");
+    }
+
+    public User findById(Long id) {
+        return repository.findById(id).orElseThrow(() ->
+                new NoSuchElementException("User with id " + id + " does not exist!"));
+    }
+
+    public List<User> findAll(Integer page, Integer pageSize) {
+        if (page == null && pageSize == null) {
+            return repository.findAll();
+        }
+        if (page == null) {
+            return repository.findAll(PageRequest.of(0, pageSize)).getContent();
+        }
+        if (pageSize == null) {
+            return List.of();
+        }
+        return repository.findAll(PageRequest.of(page, pageSize)).getContent();
     }
 }

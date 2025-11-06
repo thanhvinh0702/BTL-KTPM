@@ -10,10 +10,6 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(
-        name = "review",
-        uniqueConstraints = @UniqueConstraint(columnNames = {"product_id", "user_id"})
-)
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

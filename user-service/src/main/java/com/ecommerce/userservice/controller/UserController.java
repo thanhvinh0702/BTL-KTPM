@@ -1,31 +1,33 @@
 package com.ecommerce.userservice.controller;
 
-import com.ecommerce.userservice.dto.LoginResponse;
-import com.ecommerce.userservice.dto.RegisterRequest;
-import com.ecommerce.userservice.model.User;
+import com.ecommerce.userservice.dto.UserResponse;
 import com.ecommerce.userservice.service.UserService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
+import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
+import java.util.List;
 
 @RestController
-@RequestMapping("/users/auth")
-@RequiredArgsConstructor
+@RequestMapping("/api/v1/users")
+@AllArgsConstructor
 public class UserController {
-    private final UserService service;
 
-    @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest registerRequest) {
-        return new ResponseEntity<>(service.register(registerRequest), HttpStatus.CREATED);
+    private final UserService userService;
+
+    @GetMapping("/{userId}")
+    public ResponseEntity<UserResponse> findById(@PathVariable Long userId) {
+        return ResponseEntity.ok(UserResponse.mapUserToUserResponse(userService.findById(userId)));
     }
 
-    @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@RequestBody Map<String, String> body) {
-        String token = service.login(body.get("email"), body.get("password"));
-        LoginResponse loginResponse = new LoginResponse(token);
-        return new ResponseEntity<>(loginResponse, HttpStatus.OK);
+    @GetMapping
+    public ResponseEntity<List<UserResponse>> findAll(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer pageSize
+    ) {
+        return ResponseEntity.ok(userService.findAll(page, pageSize)
+                .stream()
+                .map(UserResponse::mapUserToUserResponse)
+                .toList());
     }
 }

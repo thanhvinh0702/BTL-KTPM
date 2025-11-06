@@ -1,7 +1,9 @@
 package com.ecommerce.productservice.controller;
 
 import com.ecommerce.productservice.dto.ReviewRequest;
+import com.ecommerce.productservice.dto.ReviewResponse;
 import com.ecommerce.productservice.model.Review;
+import com.ecommerce.productservice.model.ReviewProductIdIndex;
 import com.ecommerce.productservice.service.ReviewService;
 import com.ecommerce.productservice.validation.OnCreate;
 import com.ecommerce.productservice.validation.OnUpdate;
@@ -23,31 +25,31 @@ public class ReviewController {
     }
 
     @GetMapping("/{reviewId}")
-    public ResponseEntity<Review> findById(@PathVariable Long reviewId) {
+    public ResponseEntity<ReviewResponse> findById(@PathVariable Long reviewId) {
         return ResponseEntity.ok(reviewService.findById(reviewId));
     }
 
     @GetMapping
-    public ResponseEntity<List<Review>> findByProductId(@PathVariable Long productId) {
+    public ResponseEntity<List<ReviewResponse>> findByProductId(@PathVariable Long productId) {
         return ResponseEntity.ok(reviewService.findByProductId(productId));
     }
 
     @PostMapping
-    public ResponseEntity<Review> createReview(@PathVariable Long productId,
+    public ResponseEntity<ReviewResponse> createReview(@PathVariable Long productId,
                                                @Validated(OnCreate.class) @RequestBody ReviewRequest reviewRequest,
                                                @RequestHeader("x-user-id") Long userId) {
         return new ResponseEntity<>(reviewService.createReview(productId, reviewRequest, userId), HttpStatus.CREATED);
     }
 
     @PutMapping("/{reviewId}")
-    public ResponseEntity<Review> updateReview(@PathVariable Long reviewId,
+    public ResponseEntity<ReviewResponse> updateReview(@PathVariable Long reviewId,
                                                @Validated(OnUpdate.class) @RequestBody ReviewRequest reviewRequest,
                                                @RequestHeader("x-user-id") Long userId) {
         return ResponseEntity.ok(reviewService.updateReview(reviewId, reviewRequest, userId));
     }
 
     @DeleteMapping("/{reviewId}")
-    public ResponseEntity<Review> deleteReview(@PathVariable Long reviewId,
+    public ResponseEntity<ReviewResponse> deleteReview(@PathVariable Long reviewId,
                                                @RequestHeader("x-user-id") Long userId) {
         return ResponseEntity.ok(reviewService.deleteReview(reviewId, userId));
     }
