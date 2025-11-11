@@ -3,6 +3,7 @@ package com.ecommerce.paymentservice.service;
 import com.ecommerce.paymentservice.Enum.PaymentMethod;
 import com.ecommerce.paymentservice.Enum.PaymentStatus;
 import com.ecommerce.paymentservice.client.OrderClient;
+import com.ecommerce.paymentservice.dto.event.OrderCreatedEvent;
 import com.ecommerce.paymentservice.dto.external.OrderResponse;
 import com.ecommerce.paymentservice.dto.request.PaymentRequest;
 import com.ecommerce.paymentservice.dto.response.PaymentResponse;
@@ -56,5 +57,21 @@ public class PaymentService {
         }
 
         return paymentMapper.toPaymentResponse(savedPayment);
+    }
+
+    @Transactional
+    public void processPayment(OrderCreatedEvent event) {
+        Payment payment = Payment.builder()
+                .orderId(event.getOrderId())
+                .userId(event.getUserId())
+                .paymentAmount(event.getTotalPrice())
+                .paymentDate(LocalDateTime.now())
+                .paymentMethod(PaymentMethod.UPI)
+                .paymentStatus(PaymentStatus.SUCCESSFUL) //test
+                .build();
+
+        paymentRepository.save(payment);
+
+        System.out.println("Payment init for order" + event.getOrderId());
     }
 }
