@@ -90,4 +90,10 @@ public class CartController {
         cartService.clearCart(cartId);
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/{cartId}/checkout")
+    public ResponseEntity<Void> checkout(@PathVariable Long cartId) {
+        cartService.checkout(cartId);
+        return ResponseEntity.ok().build();
+    }
 }

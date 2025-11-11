@@ -1,6 +1,7 @@
 package com.ecommerce.cartservice.service;
 
 import com.ecommerce.cartservice.client.ProductClient;
+import com.ecommerce.cartservice.dto.events.CartCheckedOutEvent;
 import com.ecommerce.cartservice.dto.external.ProductResponse;
 import com.ecommerce.cartservice.dto.request.AddToCartRequest;
 import com.ecommerce.cartservice.dto.response.CartResponse;
@@ -9,11 +10,15 @@ import com.ecommerce.cartservice.model.Cart;
 import com.ecommerce.cartservice.model.CartItem;
 import com.ecommerce.cartservice.repository.CartItemRepository;
 import com.ecommerce.cartservice.repository.CartRepository;
+import com.ecommerce.cartservice.service.publisher.CartEventPublisher;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +28,8 @@ public class CartService {
     private final CartItemRepository cartItemRepository;
     private final ProductClient productClient;
     private final CartMapper cartMapper;
+
+    private final CartEventPublisher cartEventPublisher;
 
     /**
      * Thêm sản phẩm vào giỏ hàng
@@ -161,6 +168,33 @@ public class CartService {
         Cart cart = cartRepository.findById(cartId)
                 .orElseThrow(() -> new RuntimeException("Cart not found"));
         return cartMapper.toCartResponse(cart);
+    }
+
+    @Transactional
+    public void checkout(Long cartId) {
+        Cart cart  = cartRepository.findById(cartId)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
+
+        CartCheckedOutEvent event = new CartCheckedOutEvent();
+        event.setUserId(cart.getUserId());
+        event.setEventId(UUID.randomUUID().toString());
+        event.setTimestamp(Instant.now().toString());
+
+        List<CartCheckedOutEvent.Item> items = cart.getItems().stream()
+                .map(i -> {
+                    CartCheckedOutEvent.Item ie = new CartCheckedOutEvent.Item();
+                    ie.setProductId(i.getProductId());
+                    ie.setQuantity(i.getQuantity());
+                    return ie;
+                })
+                .toList();
+
+        event.setItems(items);
+
+        cartEventPublisher.publishCartCheckedOut(event);
+
+        clearCart(cartId);
+
     }
 
 }
