@@ -163,6 +163,16 @@ public class CartService {
         return cartMapper.toCartResponse(cart);
     }
 
+    /**
+     * get cart by userID
+     */
+    public CartResponse getCartByUserId(Long userId) {
+        Cart cart = cartRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
+        return cartMapper.toCartResponse(cart);
+    }
+
+
 }
 
 

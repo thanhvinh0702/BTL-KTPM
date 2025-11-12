@@ -48,4 +48,9 @@ public class ExceptionControllerAdvice {
         errorDetails.setMessage(message);
         return new ResponseEntity<>(errorDetails, status);
     }
+
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<ErrorDetails> emptyCart(RuntimeException ex) {
+        return buildResponse(ex.getMessage(), HttpStatus.EXPECTATION_FAILED);
+    }
 }

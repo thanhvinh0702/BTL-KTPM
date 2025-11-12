@@ -26,13 +26,11 @@ public class OrderController {
 
     private final OrdersService ordersService;
 
-    /***
     @PostMapping("/placed/{userid}")
     public ResponseEntity<?> addOrderToCart(@PathVariable("userid") Long userid) {
         OrderResponse placeOrder = ordersService.placeOrder(userid);
         return ResponseEntity.ok(placeOrder);
     }
-     ***/
 
     @GetMapping("/{orderId}")
     public ResponseEntity<Orders> getOrdersDetails(@PathVariable("orderId") Integer orderId) {
@@ -58,13 +56,12 @@ public class OrderController {
         List<Orders> orders = ordersService.viewAllOrderByDate(date);
         return new ResponseEntity<>(orders, HttpStatus.OK);
     }
-    /***
+
     @DeleteMapping("/users/{userId}/{orderId}")
     public ResponseEntity<String> deleteOrders(@PathVariable Integer userId, @PathVariable Integer orderId) {
         ordersService.deleteOrders(userId, orderId);
         return new ResponseEntity<>("Order successfully deleted.", HttpStatus.OK);
     }
-    ***/
 
 }
 
