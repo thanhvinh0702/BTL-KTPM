@@ -1,13 +1,21 @@
 package com.ecommerce.cartservice.model;
 
-import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-@Entity
-@Table(name = "cart")
+@Document(collection = "carts")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -15,23 +23,17 @@ import java.util.List;
 public class Cart {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long cartId;
+    private String cartId;
 
-    @Column(nullable = false)
-    private Long userId; // chỉ lưu logic userId từ User Service
+    @Indexed(unique = true)
+    private Long userId;
 
-    @Column(nullable = false)
-    private Double totalAmount = 0.0;
-
-    @Column(nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
-
-    @Column(nullable = false)
-    private LocalDateTime updatedAt = LocalDateTime.now();
-
-    // Một cart có nhiều cartItem, xóa cart thì xóa luôn item
-    @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @Builder.Default
     private List<CartItem> items = new ArrayList<>();
+
+    @CreatedDate
+    private Instant createdAt;
+
+    @LastModifiedDate
+    private Instant updatedAt;
+
 }

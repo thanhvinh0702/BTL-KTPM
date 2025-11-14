@@ -35,7 +35,7 @@ public class CartController {
      */
     @PutMapping("/increase-productQty/{cartId}/{productId}")
     public ResponseEntity<CartResponse> increaseProductQuantity(
-            @PathVariable Long cartId,
+            @PathVariable String cartId,
             @PathVariable Long productId) {
         CartResponse updatedCart = cartService.changeProductQuantity(cartId, productId, +1);
         return ResponseEntity.ok(updatedCart);
@@ -49,7 +49,7 @@ public class CartController {
      */
     @PutMapping("/decrease-productQty/{cartId}/{productId}")
     public ResponseEntity<CartResponse> decreaseProductQuantity(
-            @PathVariable Long cartId,
+            @PathVariable String cartId,
             @PathVariable Long productId) {
         CartResponse updatedCart = cartService.changeProductQuantity(cartId, productId, -1);
         return ResponseEntity.ok(updatedCart);
@@ -61,7 +61,7 @@ public class CartController {
      * @return
      */
     @GetMapping("/products/{cartId}")
-    public ResponseEntity<CartResponse> getCartById(@PathVariable Long cartId) {
+    public ResponseEntity<CartResponse> getCartById(@PathVariable String cartId) {
         CartResponse cart = cartService.getCartById(cartId);
         return ResponseEntity.ok(cart);
     }
@@ -74,7 +74,7 @@ public class CartController {
      */
     @DeleteMapping("/remove-product/{cartId}/{productId}")
     public ResponseEntity<CartResponse> removeProductFromCart(
-            @PathVariable Long cartId,
+            @PathVariable String cartId,
             @PathVariable Long productId) {
         CartResponse updatedCart = cartService.removeProductFromCart(cartId, productId);
         return ResponseEntity.ok(updatedCart);
@@ -86,13 +86,13 @@ public class CartController {
      * @return
      */
     @DeleteMapping("/empty-cart/{cartId}")
-    public ResponseEntity<Void> emptyCart(@PathVariable Long cartId) {
+    public ResponseEntity<Void> emptyCart(@PathVariable String cartId) {
         cartService.clearCart(cartId);
         return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{cartId}/checkout")
-    public ResponseEntity<Void> checkout(@PathVariable Long cartId) {
+    public ResponseEntity<Void> checkout(@PathVariable String cartId) {
         cartService.checkout(cartId);
         return ResponseEntity.ok().build();
     }

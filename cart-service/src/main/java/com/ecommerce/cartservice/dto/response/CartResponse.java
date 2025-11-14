@@ -15,8 +15,8 @@ public class CartResponse {
     /**
      * mô tả toàn bộ giỏ hàng
      */
-    private Long cartId;
+    private String cartId;
     private Long userId;
     private List<CartItemResponse> items;
-    private Double totalAmount; // Tổng tiền giỏ hàng
+    private Double totalPrice;
 }

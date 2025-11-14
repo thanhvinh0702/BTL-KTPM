@@ -16,16 +16,19 @@ public class CartMapper {
                         .productId(item.getProductId())
                         .productName(item.getProductName())
                         .quantity(item.getQuantity())
-                        .price(item.getPriceAtTime())
-                        .totalPrice(item.getPriceAtTime() * item.getQuantity())
+                        .price(item.getPriceAtAdd())
                         .build())
                 .toList();
+
+
 
         return CartResponse.builder()
                 .cartId(cart.getCartId())
                 .userId(cart.getUserId())
                 .items(itemResponses)
-                .totalAmount(cart.getTotalAmount())
+                .totalPrice(itemResponses.stream()
+                        .mapToDouble(item -> item.getQuantity() * item.getPrice())
+                        .sum())
                 .build();
     }
 }

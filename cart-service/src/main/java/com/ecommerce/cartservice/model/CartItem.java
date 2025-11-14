@@ -1,44 +1,30 @@
 package com.ecommerce.cartservice.model;
 
-import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
-import java.time.LocalDateTime;
+import org.springframework.data.mongodb.core.index.Indexed;
 
-@Entity
-@Table(name = "cart_item")
+import java.time.Instant;
+
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class CartItem {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long cartItemId;
+    @NotNull
+    private Long productId;
 
-    @Column(nullable = false)
-    private Long productId; // id sản phẩm từ Product Service
-
-    @Column(nullable = false)
-    private String productName;
-
-    @Column(nullable = false)
-    private Double priceAtTime; // giá tại thời điểm thêm vào giỏ
-
-    @Column(nullable = false)
+    @NotNull
     private Integer quantity;
 
-    @Column(nullable = false)
-    private Double subtotal; // = priceAtTime * quantity
+    @NotNull
+    private Double PriceAtAdd;
 
-    @Column(nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private String productName;
+    private String productImage;
 
-    @Column(nullable = false)
-    private LocalDateTime updatedAt = LocalDateTime.now();
+    private Instant addedAt = Instant.now();
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cart_id", nullable = false)
-    @ToString.Exclude
-    private Cart cart;
 }
