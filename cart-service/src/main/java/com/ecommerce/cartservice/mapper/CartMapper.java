@@ -2,11 +2,10 @@ package com.ecommerce.cartservice.mapper;
 
 import com.ecommerce.cartservice.dto.response.CartItemResponse;
 import com.ecommerce.cartservice.dto.response.CartResponse;
-import com.ecommerce.cartservice.model.Cart;
+import com.ecommerce.cartservice.model.command.Cart;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Component
 public class CartMapper {
@@ -29,6 +28,8 @@ public class CartMapper {
                 .totalPrice(itemResponses.stream()
                         .mapToDouble(item -> item.getQuantity() * item.getPrice())
                         .sum())
+                .createdAt(cart.getCreatedAt())
+                .updatedAt(cart.getUpdatedAt())
                 .build();
     }
 }

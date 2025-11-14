@@ -2,7 +2,8 @@ package com.ecommerce.cartservice.controller;
 
 import com.ecommerce.cartservice.dto.request.AddToCartRequest;
 import com.ecommerce.cartservice.dto.response.CartResponse;
-import com.ecommerce.cartservice.model.Cart;
+import com.ecommerce.cartservice.model.query.CartReadModel;
+import com.ecommerce.cartservice.service.CartQueryService;
 import com.ecommerce.cartservice.service.CartService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 public class CartController {
 
     private final CartService cartService;
+    private final CartQueryService cartQueryService;
 
     /**
      * Thêm sản phẩm vào giỏ hàng
@@ -66,6 +68,21 @@ public class CartController {
         return ResponseEntity.ok(cart);
     }
 
+
+    @GetMapping("/{userId}")
+    public ResponseEntity<CartResponse> getCartByUserIdDefault(@PathVariable Long userId) {
+        CartResponse cart = cartService.getCartByUserId(userId);
+        return ResponseEntity.ok(cart);
+    }
+
+    /**
+     * lấy thông tin giỏ hàng theo userID
+     */
+    @GetMapping("/query/{userId}")
+    public ResponseEntity<CartReadModel> getCartByUserId(@PathVariable Long userId) {
+        CartReadModel cart = cartQueryService.getCartByUserId(userId);
+        return ResponseEntity.ok(cart);
+    }
     /**
      * Xóa 1 sản phẩm khỏi giỏ hàng, sau do tra ve gio hang moi
      * @param cartId

@@ -6,8 +6,8 @@ import com.ecommerce.cartservice.dto.external.ProductResponse;
 import com.ecommerce.cartservice.dto.request.AddToCartRequest;
 import com.ecommerce.cartservice.dto.response.CartResponse;
 import com.ecommerce.cartservice.mapper.CartMapper;
-import com.ecommerce.cartservice.model.Cart;
-import com.ecommerce.cartservice.model.CartItem;
+import com.ecommerce.cartservice.model.command.Cart;
+import com.ecommerce.cartservice.model.command.CartItem;
 import com.ecommerce.cartservice.repository.CartRepository;
 import com.ecommerce.cartservice.service.publisher.CartEventPublisher;
 import lombok.RequiredArgsConstructor;
@@ -124,6 +124,13 @@ public class CartService {
         Cart cart = cartRepository.findById(cartId)
                 .orElseThrow(() -> new RuntimeException("Cart not found"));
 
+
+        return cartMapper.toCartResponse(cart);
+    }
+
+    public CartResponse getCartByUserId(Long userId) {
+        Cart cart = cartRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Cart not found"));
 
         return cartMapper.toCartResponse(cart);
     }

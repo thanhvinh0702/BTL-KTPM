@@ -17,5 +17,4 @@ public class ProductResponse {
     private String name;
     private Double price;
     private String imageUrl;
-    private Boolean available;
 }
