@@ -38,7 +38,7 @@ public class Product {
     private Double price;
 
     @Column(nullable = false)
-    private Integer quantity = 0;
+    private Integer quantity = (Integer) 0;
 
     @Column(name = "owner_id", nullable = false)
     private Long ownerId;

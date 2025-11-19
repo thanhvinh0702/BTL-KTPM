@@ -1,9 +1,10 @@
-package com.ecommerce.productservice;
+package com.ecommerce.productservice.seeder;
 
 import com.ecommerce.productservice.model.Product;
 import com.ecommerce.productservice.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -11,6 +12,7 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
+@Profile("dev")
 public class ProductSeeder implements CommandLineRunner {
 
     private final ProductRepository productRepository;
