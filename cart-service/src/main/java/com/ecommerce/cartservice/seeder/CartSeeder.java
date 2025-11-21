@@ -82,8 +82,6 @@ public class CartSeeder implements CommandLineRunner {
                             .productId(productId)
                             .quantity(random.nextInt(5) + 1)
                             .priceAtAdd((random.nextDouble() * 500) + 10) // 10–510
-                            .productName("Product " + productId)
-                            .productImage("https://example.com/img/" + productId + ".jpg")
                             .addedAt(now)
                             .build()
             );

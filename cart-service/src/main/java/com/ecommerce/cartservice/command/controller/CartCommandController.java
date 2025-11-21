@@ -42,7 +42,7 @@ public class CartCommandController {
         return ResponseEntity.ok(updatedCart);
     }
 
-    @PutMapping("/remove-product/{cartId}/{productId}")
+    @DeleteMapping("/remove-product/{cartId}/{productId}")
     public ResponseEntity<CartResponse> removeProductFromCart(
             @PathVariable String cartId,
             @PathVariable Long productId) {

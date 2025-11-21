@@ -22,9 +22,6 @@ public class CartItem {
     @NotNull
     private Double priceAtAdd;
 
-    private String productName;
-    private String productImage;
-
     @Builder.Default
     private Instant addedAt = Instant.now();
 }

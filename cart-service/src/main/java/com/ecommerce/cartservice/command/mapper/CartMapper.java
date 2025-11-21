@@ -13,7 +13,6 @@ public class CartMapper {
         List<CartItemResponse> itemResponses = cart.getItems().stream()
                 .map(item -> CartItemResponse.builder()
                         .productId(item.getProductId())
-                        .productName(item.getProductName())
                         .quantity(item.getQuantity())
                         .price(item.getPriceAtAdd())
                         .build())

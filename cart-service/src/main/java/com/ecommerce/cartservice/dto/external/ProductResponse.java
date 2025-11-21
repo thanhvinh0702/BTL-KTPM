@@ -1,4 +1,4 @@
-package com.ecommerce.cartservice.command.dto.external;
+package com.ecommerce.cartservice.dto.external;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,4 +17,6 @@ public class ProductResponse {
     private String name;
     private Double price;
     private String imageUrl;
+    private Integer quantity;
+    private Boolean isAvailable;
 }

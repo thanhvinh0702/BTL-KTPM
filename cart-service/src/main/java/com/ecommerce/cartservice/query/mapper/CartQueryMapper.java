@@ -26,6 +26,7 @@ public class CartQueryMapper {
                 .productImage(item.getProductImage())
                 .priceAtAdd(item.getPriceAtAdd())
                 .quantity(item.getQuantity())
+                .isAvailable(item.getIsAvailable())
                 .build();
     }
 }

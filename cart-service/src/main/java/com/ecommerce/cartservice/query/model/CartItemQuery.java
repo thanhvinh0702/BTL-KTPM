@@ -21,4 +21,5 @@ public class CartItemQuery {
     private Double priceAtAdd;
     private String productName;
     private String productImage;
+    private Boolean isAvailable;
 }

@@ -67,8 +67,6 @@ public class CartQuerySeeder implements CommandLineRunner {
                         cart.getItems().stream()
                                 .map(i -> CartItemQuery.builder()
                                         .productId(i.getProductId())
-                                        .productName(i.getProductName())
-                                        .productImage(i.getProductImage())
                                         .priceAtAdd(i.getPriceAtAdd())
                                         .quantity(i.getQuantity())
                                         .build())

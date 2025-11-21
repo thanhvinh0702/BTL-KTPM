@@ -15,4 +15,5 @@ public class CartItemQueryResponse {
     private String productImage;
     private Double priceAtAdd;
     private Integer quantity;
+    private Boolean isAvailable;
 }
