@@ -1,0 +1,10 @@
+{
+  "eventId": "uuid",
+  "timestamp": "ISO8601",
+  "userId": "uuid",
+  "items": [
+    { "productId":  "uuid",
+      "quantity": 1
+    }
+  ]
+}

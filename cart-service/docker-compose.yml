@@ -1,16 +1,15 @@
 services:
   cart-service-db:
-    image: postgres:latest
-    restart: always
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: user
-      POSTGRES_DB: carts
+    image: mongo:7
+    container_name: cart-service-db
+    restart: unless-stopped
     ports:
-      - "5434:5432"
+      - "27016:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: user
+      MONGO_INITDB_ROOT_PASSWORD: user
     volumes:
-      - db_data:/var/lib/postgresql
+      - mongodb:/data/db
 
 volumes:
-  db_data:
-    driver: local
+  mongodb:

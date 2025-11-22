@@ -1,4 +1,4 @@
-package com.ecommerce.cartservice.dto.external;
+package com.ecommerce.cartservice.command.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,14 +9,13 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProductResponse {
-    /**
-     * được dùng bởi ProductClient
-     */
-    private Long id;
-    private String name;
+public class CartItemResponse {
+    // Describe item in cart
+    private Long productId;
+    private String productName;
+    private String productImage;
     private Double price;
-    private String imageUrl;
     private Integer quantity;
     private Boolean isAvailable;
 }
+
