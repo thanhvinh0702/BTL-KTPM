@@ -10,7 +10,10 @@ import com.ecommerce.cartservice.command.repository.CartCommandRepository;
 import com.ecommerce.cartservice.dto.external.ProductResponse;
 import com.ecommerce.cartservice.event.dto.CartCheckedOutEvent;
 import com.ecommerce.cartservice.event.publisher.CartEventPublisher;
+import com.ecommerce.cartservice.exception.ConflictException;
+import com.ecommerce.cartservice.exception.NotFoundException;
 import com.ecommerce.cartservice.query.service.CartQueryModelSyncService;
+import com.ecommerce.cartservice.security.RequireOwner;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -45,8 +48,11 @@ public class CartCommandService {
 
         // Call ProductService
         ProductResponse product = productClient.getProductById(request.getProductId());
-        if (product == null || Boolean.FALSE.equals(product.getIsAvailable())) {
-            throw new RuntimeException("Product is not available");
+        if (product == null) {
+            throw new NotFoundException("Product is not found");
+        }
+        if (Boolean.FALSE.equals(product.getIsAvailable())) {
+            throw new ConflictException("Product is not available");
         }
 
         // Check if product already exists in embedded array
@@ -62,7 +68,7 @@ public class CartCommandService {
 
             // Validate with ProductService's stock
             if (newQuantity > product.getQuantity()) {
-                throw new RuntimeException("Not enough stock");
+                throw new ConflictException("Not enough stock");
             }
 
             // Update quantity
@@ -72,7 +78,7 @@ public class CartCommandService {
 
             // Validate for NEW item
             if (requestedQty > product.getQuantity()) {
-                throw new RuntimeException("Not enough stock");
+                throw new ConflictException("Not enough stock");
             }
 
             // Create new CartItem
@@ -99,24 +105,27 @@ public class CartCommandService {
     public CartResponse changeProductQuantity(String cartId, Long productId, int delta) {
 
         Cart cart = cartCommandRepository.findById(cartId)
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
+                .orElseThrow(() -> new NotFoundException("Cart not found"));
 
         CartItem item = cart.getItems().stream()
                 .filter(i -> i.getProductId().equals(productId))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Product not in cart"));
+                .orElseThrow(() -> new ConflictException("Product not in cart"));
 
         int newQty = item.getQuantity() + delta;
         // Validate if delta > 0
         if (delta > 0) {
             ProductResponse product = productClient.getProductById(productId);
+            if (product == null) {
+                throw new NotFoundException("Product is not found");
+            }
 
-            if (product == null || Boolean.FALSE.equals(product.getIsAvailable())) {
-                throw new RuntimeException("Product is not available");
+            if (Boolean.FALSE.equals(product.getIsAvailable())) {
+                throw new ConflictException("Product is not available");
             }
 
             if (newQty > product.getQuantity()) {
-                throw new RuntimeException("Not enough stock");
+                throw new ConflictException("Not enough stock");
             }
         }
 
@@ -138,7 +147,7 @@ public class CartCommandService {
      */
     public CartResponse removeProductFromCart(String cartId, Long productId) {
         Cart cart = cartCommandRepository.findById(cartId)
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
+                .orElseThrow(() -> new NotFoundException("Cart not found"));
 
         cart.getItems().removeIf(i -> i.getProductId().equals(productId));
 
@@ -154,7 +163,7 @@ public class CartCommandService {
      */
     public void clearCart(String cartId) {
         Cart cart = cartCommandRepository.findById(cartId)
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
+                .orElseThrow(() -> new NotFoundException("Cart not found"));
 
         cart.getItems().clear();
 
@@ -165,22 +174,26 @@ public class CartCommandService {
 
     public void checkout(String cartId) {
         Cart cart = cartCommandRepository.findById(cartId)
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
+                .orElseThrow(() -> new NotFoundException("Cart not found"));
 
         if (cart.getItems() == null || cart.getItems().isEmpty()) {
-            throw new RuntimeException("Cart is empty");
+            throw new ConflictException("Cart is empty");
         }
 
         // Validate từng item bằng ProductService
         for (CartItem i : cart.getItems()) {
             ProductResponse p = productClient.getProductById(i.getProductId());
 
-            if (p == null || Boolean.FALSE.equals(p.getIsAvailable())) {
-                throw new RuntimeException("Product " + i.getProductId() + " is unavailable");
+            if (p == null) {
+                throw new NotFoundException("Product " + i.getProductId() + " is not found");
+            }
+
+            if (Boolean.FALSE.equals(p.getIsAvailable())) {
+                throw new NotFoundException("Product " + i.getProductId() + " is unavailable");
             }
 
             if (p.getQuantity() < i.getQuantity()) {
-                throw new RuntimeException("Not enough stock for product " + i.getProductId());
+                throw new ConflictException("Not enough stock for product " + i.getProductId());
             }
         }
 
