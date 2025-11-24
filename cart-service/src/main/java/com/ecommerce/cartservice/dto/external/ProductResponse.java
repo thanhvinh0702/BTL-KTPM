@@ -18,5 +18,5 @@ public class ProductResponse {
     private Double price;
     private String imageUrl;
     private Integer quantity;
-    private Boolean isAvailable;
+    private Boolean available;
 }

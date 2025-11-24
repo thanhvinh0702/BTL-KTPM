@@ -51,7 +51,7 @@ public class CartCommandService {
         if (product == null) {
             throw new NotFoundException("Product is not found");
         }
-        if (Boolean.FALSE.equals(product.getIsAvailable())) {
+        if (Boolean.FALSE.equals(product.getAvailable())) {
             throw new ConflictException("Product is not available");
         }
 
@@ -120,7 +120,7 @@ public class CartCommandService {
                 throw new NotFoundException("Product is not found");
             }
 
-            if (Boolean.FALSE.equals(product.getIsAvailable())) {
+            if (Boolean.FALSE.equals(product.getAvailable())) {
                 throw new ConflictException("Product is not available");
             }
 
@@ -188,7 +188,7 @@ public class CartCommandService {
                 throw new NotFoundException("Product " + i.getProductId() + " is not found");
             }
 
-            if (Boolean.FALSE.equals(p.getIsAvailable())) {
+            if (Boolean.FALSE.equals(p.getAvailable())) {
                 throw new NotFoundException("Product " + i.getProductId() + " is unavailable");
             }
 

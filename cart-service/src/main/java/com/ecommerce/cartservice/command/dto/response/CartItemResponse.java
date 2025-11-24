@@ -12,10 +12,7 @@ import lombok.NoArgsConstructor;
 public class CartItemResponse {
     // Describe item in cart
     private Long productId;
-    private String productName;
-    private String productImage;
     private Double price;
     private Integer quantity;
-    private Boolean isAvailable;
 }
 
