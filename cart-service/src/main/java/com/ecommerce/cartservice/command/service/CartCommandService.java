@@ -7,9 +7,11 @@ import com.ecommerce.cartservice.command.mapper.CartMapper;
 import com.ecommerce.cartservice.command.model.Cart;
 import com.ecommerce.cartservice.command.model.CartItem;
 import com.ecommerce.cartservice.command.repository.CartCommandRepository;
+import com.ecommerce.cartservice.command.repository.CartItemCommandRepository;
 import com.ecommerce.cartservice.dto.external.ProductResponse;
 import com.ecommerce.cartservice.event.dto.CartCheckedOutEvent;
 import com.ecommerce.cartservice.event.dto.CommandQuerySyncEvent;
+import com.ecommerce.cartservice.event.dto.EventType;
 import com.ecommerce.cartservice.event.publisher.CartEventPublisher;
 import com.ecommerce.cartservice.event.publisher.CartSyncPublisher;
 import com.ecommerce.cartservice.exception.ConflictException;
@@ -29,6 +31,8 @@ import java.util.UUID;
 public class CartCommandService {
     private final CartCommandRepository cartCommandRepository;
 
+    private final CartItemCommandRepository cartItemCommandRepository;
+
     private final ProductClient productClient;
 
     private final CartQueryModelSyncService cartQueryModelSyncService;
@@ -45,6 +49,7 @@ public class CartCommandService {
         Cart cart = cartCommandRepository.findByUserId(request.getUserId())
                 .orElseGet(() -> cartCommandRepository.save(
                         Cart.builder()
+                                .id(UUID.randomUUID().toString())
                                 .userId(request.getUserId())
                                 .items(new ArrayList<>())
                                 .build()
@@ -60,11 +65,8 @@ public class CartCommandService {
             throw new ConflictException("Product is not available");
         }
 
-        // Check if product already exists in embedded array
-        CartItem existingItem = cart.getItems().stream()
-                .filter(i -> i.getProductId().equals(request.getProductId()))
-                .findFirst()
-                .orElse(null);
+        // Check if product already exists
+        CartItem existingItem = cartItemCommandRepository.findByCartIdAndProductId(cart.getId(), request.getProductId());
 
         int requestedQty = request.getQuantity();
 
@@ -78,7 +80,6 @@ public class CartCommandService {
 
             // Update quantity
             existingItem.setQuantity(newQuantity);
-
         } else {
 
             // Validate for NEW item
@@ -87,25 +88,27 @@ public class CartCommandService {
             }
 
             // Create new CartItem
-            CartItem newItem = CartItem.builder()
+            existingItem = CartItem.builder()
                     .productId(product.getId())
                     .quantity(requestedQty)
                     .priceAtAdd(product.getPrice())
+                    .cart(cart)
                     .addedAt(Instant.now())
                     .build();
-
-            cart.getItems().add(newItem);
         }
 
-        Cart saved = cartCommandRepository.save(cart);
+        cartItemCommandRepository.save(existingItem);
 
         // Sync command-query
         cartSyncPublisher.publish(CommandQuerySyncEvent.builder()
-                        .cart(saved)
+                        .cartId(cart.getId())
+                        .userId(cart.getUserId())
+                        .cartItem(existingItem)
                         .product(product)
+                        .type(EventType.ADD)
                         .build());
 
-        return CartMapper.toResponse(saved);
+        return CartMapper.toResponse(cart);
     }
 
     /**
@@ -116,10 +119,11 @@ public class CartCommandService {
         Cart cart = cartCommandRepository.findById(cartId)
                 .orElseThrow(() -> new NotFoundException("Cart not found"));
 
-        CartItem item = cart.getItems().stream()
-                .filter(i -> i.getProductId().equals(productId))
-                .findFirst()
-                .orElseThrow(() -> new ConflictException("Product not in cart"));
+        CartItem item = cartItemCommandRepository.findByCartIdAndProductId(cartId, productId);
+
+        if (item == null) {
+            throw new ConflictException("Product not in cart");
+        }
 
         int newQty = item.getQuantity() + delta;
         // Validate if delta > 0
@@ -145,11 +149,16 @@ public class CartCommandService {
             item.setQuantity(newQty);
         }
 
-        Cart saved = cartCommandRepository.save(cart);
+        cartItemCommandRepository.save(item);
 
-        cartSyncPublisher.publish(CommandQuerySyncEvent.builder().cart(saved).build());
+        cartSyncPublisher.publish(CommandQuerySyncEvent.builder()
+                .cartId(cart.getId())
+                .userId(cart.getUserId())
+                .cartItem(item)
+                .type(EventType.UPDATE)
+                .build());
 
-        return CartMapper.toResponse(saved);
+        return CartMapper.toResponse(cart);
     }
     /**
      * Remove a product
@@ -157,14 +166,16 @@ public class CartCommandService {
     public CartResponse removeProductFromCart(String cartId, Long productId) {
         Cart cart = cartCommandRepository.findById(cartId)
                 .orElseThrow(() -> new NotFoundException("Cart not found"));
+        CartItem item = cartItemCommandRepository.findByCartIdAndProductId(cartId, productId);
+        cartItemCommandRepository.delete(item);
+        cartSyncPublisher.publish(CommandQuerySyncEvent.builder()
+                        .cartId(cart.getId())
+                        .userId(cart.getUserId())
+                        .cartItem(item)
+                        .type(EventType.DELETE)
+                        .build());
 
-        cart.getItems().removeIf(i -> i.getProductId().equals(productId));
-
-        Cart saved = cartCommandRepository.save(cart);
-
-        cartSyncPublisher.publish(CommandQuerySyncEvent.builder().cart(saved).build());
-
-        return CartMapper.toResponse(saved);
+        return CartMapper.toResponse(cart);
     }
 
     /**
@@ -178,7 +189,11 @@ public class CartCommandService {
 
         Cart saved = cartCommandRepository.save(cart);
 
-        cartSyncPublisher.publish(CommandQuerySyncEvent.builder().cart(saved).build());
+        cartSyncPublisher.publish(CommandQuerySyncEvent.builder()
+                    .cartId(saved.getId())
+                    .userId(cart.getUserId())
+                    .type(EventType.CLEAR)
+                    .build());
     }
 
     public void checkout(String cartId) {
@@ -227,7 +242,7 @@ public class CartCommandService {
         // Clear cart
         cart.getItems().clear();
         Cart saved = cartCommandRepository.save(cart);
-        cartSyncPublisher.publish(CommandQuerySyncEvent.builder().cart(saved).build());
+        cartSyncPublisher.publish(CommandQuerySyncEvent.builder().cartId(saved.getId()).userId(saved.getUserId()).type(EventType.CLEAR).build());
     }
 
 }

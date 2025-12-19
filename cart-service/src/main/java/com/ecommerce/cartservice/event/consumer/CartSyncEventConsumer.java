@@ -17,11 +17,11 @@ public class CartSyncEventConsumer {
             concurrency = "1"
     )
     public void handle(CommandQuerySyncEvent commandQuerySyncEvent) {
-        if (commandQuerySyncEvent.getProduct() == null) {
-            cartQueryModelSyncService.sync(commandQuerySyncEvent.getCart());
-        }
-        else {
-            cartQueryModelSyncService.sync(commandQuerySyncEvent.getCart(), commandQuerySyncEvent.getProduct());
-        }
+            cartQueryModelSyncService.syncCartItem(
+                    commandQuerySyncEvent.getCartId(),
+                    commandQuerySyncEvent.getUserId(),
+                    commandQuerySyncEvent.getCartItem(),
+                    commandQuerySyncEvent.getProduct(),
+                    commandQuerySyncEvent.getType());
     }
 }

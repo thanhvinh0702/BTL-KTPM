@@ -1,5 +1,5 @@
 services:
-  cart-service-db:
+  cart-service-query-db:
     image: mongo:7
     container_name: cart-service-db
     restart: unless-stopped
@@ -11,5 +11,19 @@ services:
     volumes:
       - mongodb:/data/db
 
+  cart-service-command-db:
+    image: postgres:latest
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: user
+      POSTGRES_DB: carts
+    ports:
+      - 5434:5432
+    volumes:
+      - postgres:/var/lib/postgresql
+
+
 volumes:
   mongodb:
+  postgres:

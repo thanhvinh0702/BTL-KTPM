@@ -10,21 +10,9 @@ import java.util.List;
 public class CartMapper {
 
     public static CartResponse toResponse(Cart cart) {
-        List<CartItemResponse> itemResponses = cart.getItems().stream()
-                .map(item -> CartItemResponse.builder()
-                        .productId(item.getProductId())
-                        .quantity(item.getQuantity())
-                        .price(item.getPriceAtAdd())
-                        .build())
-                .toList();
-
         return CartResponse.builder()
-                .cartId(cart.getCartId())
+                .cartId(cart.getId())
                 .userId(cart.getUserId())
-                .items(itemResponses)
-                .totalPrice(itemResponses.stream()
-                        .mapToDouble(item -> item.getPrice() * item.getQuantity())
-                        .sum())
                 .createdAt(cart.getCreatedAt())
                 .updatedAt(cart.getUpdatedAt())
                 .build();

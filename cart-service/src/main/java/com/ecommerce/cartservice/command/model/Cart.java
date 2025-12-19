@@ -1,36 +1,44 @@
 package com.ecommerce.cartservice.command.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-@Document(collection = "carts")
+@Entity
+@Table(name = "cart", uniqueConstraints = {
+        @UniqueConstraint(columnNames = "user_id")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Cart {
-    @Id
-    private String cartId;
 
-    @Indexed(unique = true)
+    @Id
+    @Column(nullable = false, updatable = false)
+    private String id; // you provide the ID manually
+
+    @Column(name = "user_id", nullable = false, unique = true)
     private Long userId;
 
-    private List<CartItem> items;
+    @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
+    private List<CartItem> items = new ArrayList<>();
 
-    @CreatedDate
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    @LastModifiedDate
+    @UpdateTimestamp
+    @Column(name = "updated_at")
     private Instant updatedAt;
 }
