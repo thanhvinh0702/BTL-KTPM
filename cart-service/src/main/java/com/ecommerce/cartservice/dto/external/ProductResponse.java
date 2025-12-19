@@ -1,5 +1,6 @@
 package com.ecommerce.cartservice.dto.external;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,5 +19,6 @@ public class ProductResponse {
     private Double price;
     private String imageUrl;
     private Integer quantity;
-    private Boolean available;
+    @JsonProperty("available")
+    private Boolean isAvailable;
 }

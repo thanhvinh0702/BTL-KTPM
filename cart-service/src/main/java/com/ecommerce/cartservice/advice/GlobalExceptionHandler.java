@@ -1,6 +1,7 @@
 package com.ecommerce.cartservice.advice;
 
 import com.ecommerce.cartservice.exception.*;
+import feign.FeignException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -8,6 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -52,6 +54,12 @@ public class GlobalExceptionHandler {
                 req);
     }
 
+    @ExceptionHandler(FeignException.class)
+    public ResponseEntity<ErrorResponse> handleFeignException(feign.FeignException ex,
+                                                       HttpServletRequest request) {
+
+        return build(Objects.requireNonNull(HttpStatus.resolve(ex.status())), ex.contentUTF8(), request);
+    }
 
     private ResponseEntity<ErrorResponse> build(HttpStatus status,
                                                 String message,

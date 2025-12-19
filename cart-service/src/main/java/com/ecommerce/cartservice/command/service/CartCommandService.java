@@ -9,7 +9,9 @@ import com.ecommerce.cartservice.command.model.CartItem;
 import com.ecommerce.cartservice.command.repository.CartCommandRepository;
 import com.ecommerce.cartservice.dto.external.ProductResponse;
 import com.ecommerce.cartservice.event.dto.CartCheckedOutEvent;
+import com.ecommerce.cartservice.event.dto.CommandQuerySyncEvent;
 import com.ecommerce.cartservice.event.publisher.CartEventPublisher;
+import com.ecommerce.cartservice.event.publisher.CartSyncPublisher;
 import com.ecommerce.cartservice.exception.ConflictException;
 import com.ecommerce.cartservice.exception.NotFoundException;
 import com.ecommerce.cartservice.query.service.CartQueryModelSyncService;
@@ -33,6 +35,8 @@ public class CartCommandService {
 
     private final CartEventPublisher cartEventPublisher;
 
+    private final CartSyncPublisher cartSyncPublisher;
+
     /**
      * Add product to cart
      */
@@ -48,10 +52,11 @@ public class CartCommandService {
 
         // Call ProductService
         ProductResponse product = productClient.getProductById(request.getProductId());
+        System.out.println(product);
         if (product == null) {
             throw new NotFoundException("Product is not found");
         }
-        if (Boolean.FALSE.equals(product.getAvailable())) {
+        if (Boolean.FALSE.equals(product.getIsAvailable())) {
             throw new ConflictException("Product is not available");
         }
 
@@ -94,7 +99,11 @@ public class CartCommandService {
 
         Cart saved = cartCommandRepository.save(cart);
 
-        cartQueryModelSyncService.sync(saved, product);
+        // Sync command-query
+        cartSyncPublisher.publish(CommandQuerySyncEvent.builder()
+                        .cart(saved)
+                        .product(product)
+                        .build());
 
         return CartMapper.toResponse(saved);
     }
@@ -120,7 +129,7 @@ public class CartCommandService {
                 throw new NotFoundException("Product is not found");
             }
 
-            if (Boolean.FALSE.equals(product.getAvailable())) {
+            if (Boolean.FALSE.equals(product.getIsAvailable())) {
                 throw new ConflictException("Product is not available");
             }
 
@@ -138,7 +147,7 @@ public class CartCommandService {
 
         Cart saved = cartCommandRepository.save(cart);
 
-        cartQueryModelSyncService.sync(saved);
+        cartSyncPublisher.publish(CommandQuerySyncEvent.builder().cart(saved).build());
 
         return CartMapper.toResponse(saved);
     }
@@ -153,7 +162,7 @@ public class CartCommandService {
 
         Cart saved = cartCommandRepository.save(cart);
 
-        cartQueryModelSyncService.sync(saved);
+        cartSyncPublisher.publish(CommandQuerySyncEvent.builder().cart(saved).build());
 
         return CartMapper.toResponse(saved);
     }
@@ -169,7 +178,7 @@ public class CartCommandService {
 
         Cart saved = cartCommandRepository.save(cart);
 
-        cartQueryModelSyncService.sync(saved);
+        cartSyncPublisher.publish(CommandQuerySyncEvent.builder().cart(saved).build());
     }
 
     public void checkout(String cartId) {
@@ -188,7 +197,7 @@ public class CartCommandService {
                 throw new NotFoundException("Product " + i.getProductId() + " is not found");
             }
 
-            if (Boolean.FALSE.equals(p.getAvailable())) {
+            if (Boolean.FALSE.equals(p.getIsAvailable())) {
                 throw new NotFoundException("Product " + i.getProductId() + " is unavailable");
             }
 
@@ -218,7 +227,7 @@ public class CartCommandService {
         // Clear cart
         cart.getItems().clear();
         Cart saved = cartCommandRepository.save(cart);
-        cartQueryModelSyncService.sync(saved);
+        cartSyncPublisher.publish(CommandQuerySyncEvent.builder().cart(saved).build());
     }
 
 }

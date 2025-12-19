@@ -15,6 +15,10 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitMQConfig {
+    // Internal cart queue
+    @Value("${rabbitmq.queue.cart.internal}")
+    private String cartInternalQueue;
+
     // CART -> ORDER events
     @Value("${rabbitmq.exchange.cart}")
     private String cartExchangeName;
@@ -61,6 +65,11 @@ public class RabbitMQConfig {
     }
 
     // QUEUES (consumer)
+    @Bean
+    public Queue cartInternalQueue() {
+        return new Queue(cartInternalQueue, true);
+    }
+
     @Bean
     public Queue productUpdatedQueue() {
         return new Queue(productUpdatedQueueName, true);

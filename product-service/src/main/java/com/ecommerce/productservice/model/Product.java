@@ -31,6 +31,7 @@ public class Product {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Builder.Default
     @Column(name = "is_available", nullable = false, columnDefinition = "BOOLEAN DEFAULT true")
     private boolean isAvailable = true;
 

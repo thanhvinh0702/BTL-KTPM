@@ -38,16 +38,16 @@ public class CartQueryModelSyncService {
                     boolean isUpdatedProduct =
                             product != null && product.getId().equals(commandItem.getProductId());
 
-                    String productName = isUpdatedProduct && product != null
+                    String productName = isUpdatedProduct
                             ? product.getName()
                             : oldItem != null ? oldItem.getProductName() : null;
 
-                    String productImage = isUpdatedProduct && product != null
+                    String productImage = isUpdatedProduct
                             ? product.getImageUrl()
                             : oldItem != null ? oldItem.getProductImage() : null;
 
-                    Boolean isAvailable = isUpdatedProduct && product != null
-                            ? product.getAvailable()
+                    Boolean isAvailable = isUpdatedProduct
+                            ? product.getIsAvailable()
                             : oldItem != null ? oldItem.getIsAvailable() : true;
 
                     return CartItemQuery.builder()
