@@ -3,7 +3,7 @@ import lombok.Data;
 
 @Data
 public class OrderResponse {
-    private Integer orderId;
+    private Long orderId;
     private String status;
     private String orderDate;
     private Double orderAmount;

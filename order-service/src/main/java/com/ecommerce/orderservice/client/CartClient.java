@@ -1,4 +1,4 @@
-package com.ecommerce.orderservice.service.client;
+package com.ecommerce.orderservice.client;
 import com.ecommerce.orderservice.dto.CartResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;

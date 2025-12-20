@@ -17,11 +17,10 @@ public class OrderItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "orderItem_Id")
-    private Integer orderItemId;
+    private Long id;
 
     @Column(name = "order_id")
-    private Integer orderId;
+    private Long orderId;
 
     @Column(name = "quantity")
     private Integer quantity;

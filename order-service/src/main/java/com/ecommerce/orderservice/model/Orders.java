@@ -31,10 +31,10 @@ public class Orders {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "order_id")
-    private Integer orderId;
+    private Long id;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private OrderStatus status;
 
     @Column(name = "order_date")
@@ -46,7 +46,7 @@ public class Orders {
     @Column(name = "user_id")
     private Long userId;
 
-    @OneToMany( cascade = CascadeType.ALL,fetch = FetchType.LAZY)
+    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<OrderItem> orderItem= new ArrayList<>();
 
 /***

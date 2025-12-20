@@ -1,5 +1,6 @@
 package com.ecommerce.paymentservice.advice;
 
+import com.ecommerce.paymentservice.exception.NotEnoughCreditException;
 import com.ecommerce.paymentservice.exception.PaymentException;
 import feign.FeignException;
 import lombok.AllArgsConstructor;
@@ -50,6 +51,18 @@ public class GlobalExceptionHandler {
                 request.getDescription(false)
         );
         return new ResponseEntity<>(error, HttpStatus.valueOf(ex.status()));
+    }
+
+    @ExceptionHandler(NotEnoughCreditException.class)
+    public ResponseEntity<ErrorResponse> handleNotEnoughCreditException(NotEnoughCreditException ex, WebRequest request) {
+        ErrorResponse errorResponse = new ErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                "NotEnoughCredit",
+                ex.getMessage(),
+                request.getDescription(false)
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
     // handle common error

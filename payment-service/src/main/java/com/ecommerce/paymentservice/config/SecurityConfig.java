@@ -1,4 +1,4 @@
-package com.ecommerce.orderservice.config;
+package com.ecommerce.paymentservice.config;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

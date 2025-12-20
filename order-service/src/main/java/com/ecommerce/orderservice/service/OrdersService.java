@@ -10,7 +10,7 @@ import com.ecommerce.orderservice.dto.CartResponse;
 import com.ecommerce.orderservice.dto.OrderResponse;
 import com.ecommerce.orderservice.model.OrderItem;
 import com.ecommerce.orderservice.repository.OrderRepository;
-import com.ecommerce.orderservice.service.client.CartClient;
+import com.ecommerce.orderservice.client.CartClient;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
@@ -40,7 +40,7 @@ public class OrdersService {
 
         for(CartItemResponse cartItem : cartItems){
             OrderItem orderItem = new OrderItem();
-            orderItem.setOrderId(order.getOrderId());
+            orderItem.setOrderId(order.getId());
             orderItem.setQuantity(cartItem.getQuantity());
             orderItem.setProduct_id(cartItem.getProductId());
             orderItems.add(orderItem);
@@ -51,7 +51,7 @@ public class OrdersService {
         orderRepository.save(order);
 
         OrderResponse orderData=new OrderResponse();
-        orderData.setOrderId(order.getOrderId());
+        orderData.setOrderId(order.getId());
         orderData.setOrderAmount(order.getTotalAmount());
         orderData.setStatus("Pending");
         orderData.setPaymentStatus("Pending");
