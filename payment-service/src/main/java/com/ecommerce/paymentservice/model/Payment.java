@@ -8,7 +8,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -26,10 +25,10 @@ public class Payment {
     private Long orderId;
 
     @Column(nullable = false)
-    private Long userId;
+    private String userId;
 
     @Column(nullable = false)
-    private BigDecimal paymentAmount;
+    private Double paymentAmount;
 
     @Column(nullable = false) // now paymentDate means the time when payment created + paid(together)
     private LocalDateTime paymentDate;

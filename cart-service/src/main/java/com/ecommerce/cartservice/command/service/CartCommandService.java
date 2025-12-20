@@ -6,12 +6,13 @@ import com.ecommerce.cartservice.command.dto.response.CartResponse;
 import com.ecommerce.cartservice.command.mapper.CartMapper;
 import com.ecommerce.cartservice.command.model.Cart;
 import com.ecommerce.cartservice.command.model.CartItem;
+import com.ecommerce.cartservice.command.model.SagaLog;
+import com.ecommerce.cartservice.command.model.SagaStatus;
 import com.ecommerce.cartservice.command.repository.CartCommandRepository;
 import com.ecommerce.cartservice.command.repository.CartItemCommandRepository;
+import com.ecommerce.cartservice.command.repository.SagaLogRepository;
 import com.ecommerce.cartservice.dto.external.ProductResponse;
-import com.ecommerce.cartservice.event.dto.CartCheckedOutEvent;
-import com.ecommerce.cartservice.event.dto.CommandQuerySyncEvent;
-import com.ecommerce.cartservice.event.dto.EventType;
+import com.ecommerce.cartservice.event.dto.*;
 import com.ecommerce.cartservice.event.publisher.CartEventPublisher;
 import com.ecommerce.cartservice.event.publisher.CartSyncPublisher;
 import com.ecommerce.cartservice.exception.ConflictException;
@@ -20,6 +21,7 @@ import com.ecommerce.cartservice.query.service.CartQueryModelSyncService;
 import com.ecommerce.cartservice.security.RequireOwner;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -40,6 +42,9 @@ public class CartCommandService {
     private final CartEventPublisher cartEventPublisher;
 
     private final CartSyncPublisher cartSyncPublisher;
+
+    private final SagaLogRepository sagaLogRepository;
+    private final SagaLogService sagaLogService;
 
     /**
      * Add product to cart
@@ -185,15 +190,53 @@ public class CartCommandService {
         Cart cart = cartCommandRepository.findById(cartId)
                 .orElseThrow(() -> new NotFoundException("Cart not found"));
 
-        cart.getItems().clear();
-
-        Cart saved = cartCommandRepository.save(cart);
+        cartItemCommandRepository.deleteAllByCartId(cart.getId());
 
         cartSyncPublisher.publish(CommandQuerySyncEvent.builder()
-                    .cartId(saved.getId())
+                    .cartId(cart.getId())
                     .userId(cart.getUserId())
                     .type(EventType.CLEAR)
                     .build());
+    }
+
+    @Transactional
+    public void idempotencyEmptyCart(EventMessage<OrderCreatedPayload> eventMessage, Long userId) {
+        SagaLog sagaLog = sagaLogRepository.findById(eventMessage.getEventId()).orElseGet(() ->
+                SagaLog.builder().sagaId(eventMessage.getEventId()).status(SagaStatus.PENDING).build());
+        try {
+            emptyCart(userId);
+            sagaLog.setStatus(SagaStatus.COMPLETED);
+            sagaLogService.save(sagaLog);
+            EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
+                    .eventId(eventMessage.getEventId())
+                    .correlationId(eventMessage.getCorrelationId())
+                    .eventType("cart.success")
+                    .occurredAt(Instant.now())
+                    .source("cart-service")
+                    .payload(null)
+                    .build();
+            cartEventPublisher.publishCartEmptySuccess(eventPublishedMessage);
+        }
+        catch (Exception e) {
+            sagaLog.setStatus(SagaStatus.COMPENSATED);
+            sagaLogService.save(sagaLog);
+            EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
+                    .eventId(eventMessage.getEventId())
+                    .correlationId(eventMessage.getCorrelationId())
+                    .eventType("cart.failed")
+                    .occurredAt(Instant.now())
+                    .source("cart-service")
+                    .payload(null)
+                    .build();
+            cartEventPublisher.publishCartEmptyFailed(eventPublishedMessage);
+            throw e;
+        }
+    }
+
+    public void emptyCart(Long userId) {
+        Cart cart = cartCommandRepository.findByUserId(userId).orElseThrow(() ->
+                new RuntimeException("No cart found for user " + userId));
+        clearCart(cart.getId());
     }
 
     public void checkout(String cartId) {

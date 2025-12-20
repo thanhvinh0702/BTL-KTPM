@@ -15,6 +15,16 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitMQConfig {
+    // ORDER <-> CART events
+    @Value("${rabbitmq.exchange.order}")
+    private String orderExchangeName;
+
+    @Value("${rabbitmq.queue.cart.order-created}")
+    private String cartOrderCreatedQueue;
+
+    @Value("${rabbitmq.routing-key.cart.order-created}")
+    private String cartOrderCreatedRoutingKey;
+
     // Internal cart queue
     @Value("${rabbitmq.queue.cart.internal}")
     private String cartInternalQueue;
@@ -55,6 +65,11 @@ public class RabbitMQConfig {
 
     // EXCHANGES
     @Bean
+    public TopicExchange orderExchange() {
+        return new TopicExchange(orderExchangeName);
+    }
+
+    @Bean
     public TopicExchange cartExchange() {
         return new TopicExchange(cartExchangeName);
     }
@@ -65,6 +80,11 @@ public class RabbitMQConfig {
     }
 
     // QUEUES (consumer)
+    @Bean
+    public Queue cartOrderCreatedQueue() {
+        return new Queue(cartOrderCreatedQueue, true);
+    }
+
     @Bean
     public Queue cartInternalQueue() {
         return new Queue(cartInternalQueue, true);
@@ -91,6 +111,13 @@ public class RabbitMQConfig {
     }
 
     // BINDING
+    @Bean
+    public Binding cartOrderCreatedBinding() {
+        return BindingBuilder.bind(cartOrderCreatedQueue())
+                .to(orderExchange())
+                .with(cartOrderCreatedRoutingKey);
+    }
+
     @Bean
     public Binding bindingProductUpdate() {
         return BindingBuilder.bind(productUpdatedQueue())

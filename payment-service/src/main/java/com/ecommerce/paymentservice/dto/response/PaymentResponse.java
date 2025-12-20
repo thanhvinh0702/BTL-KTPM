@@ -17,8 +17,8 @@ import java.time.LocalDateTime;
 public class PaymentResponse {
     private Long id;
     private Long orderId;
-    private Long userId;
-    private BigDecimal amount;
+    private String userId;
+    private Double amount;
     private PaymentMethod paymentMethod;
     private PaymentStatus paymentStatus;
     private LocalDateTime paymentDate;

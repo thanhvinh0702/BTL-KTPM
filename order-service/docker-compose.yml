@@ -1,13 +1,13 @@
 services:
-  user-service-db:
+  order-service-db:
     image: postgres:latest
     restart: always
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: user
-      POSTGRES_DB: users
+      POSTGRES_DB: orders
     ports:
-      - 5435:5432
+      - 5436:5432
     volumes:
       - db_data:/var/lib/postgresql
 

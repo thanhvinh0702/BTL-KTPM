@@ -15,8 +15,8 @@ public class CartItemResponse {
      */
     private Long productId;
     private String productName;
-    private String imageUrl;
-    private Double price;
+    private String productImage;
+    private Double priceAtAdd;
     private Integer quantity;
-    private Double totalPrice; // price * quantity
+    private Boolean isAvailable;
 }

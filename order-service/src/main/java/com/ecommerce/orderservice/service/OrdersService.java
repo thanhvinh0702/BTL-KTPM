@@ -1,110 +1,141 @@
 package com.ecommerce.orderservice.service;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
-import com.ecommerce.orderservice.dto.CartItemResponse;
-import com.ecommerce.orderservice.dto.CartResponse;
-import com.ecommerce.orderservice.dto.OrderResponse;
-import com.ecommerce.orderservice.model.OrderItem;
+import com.ecommerce.orderservice.dto.*;
+import com.ecommerce.orderservice.mapper.OrderMapper;
+import com.ecommerce.orderservice.model.*;
+import com.ecommerce.orderservice.publisher.OrderEventPublisher;
 import com.ecommerce.orderservice.repository.OrderRepository;
 import com.ecommerce.orderservice.client.CartClient;
-import jakarta.persistence.EntityNotFoundException;
+import com.ecommerce.orderservice.repository.OrderSagaRepository;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
-import com.ecommerce.orderservice.model.Orders;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 
 @Service
+@RequiredArgsConstructor
 public class OrdersService {
-    private OrderRepository orderRepository;
-    private CartClient cartClient;
+
+    private final OrderRepository orderRepository;
+    private final CartClient cartClient;
+    private final OrderMapper orderMapper;
+    private final OrderEventPublisher orderEventPublisher;
+    private final OrderSagaRepository orderSagaRepository;
 
     @Transactional
-    public OrderResponse placeOrder(Long userId){
-        /**
-         * get user cart
-         */
+    public void syncOrderStatus(String sagaId) {
+        OrderSaga saga = orderSagaRepository.findById(sagaId)
+                .orElseThrow(() -> new IllegalArgumentException("Saga not found: " + sagaId));
+
+        Orders order = orderRepository.findById(saga.getOrderId())
+                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + saga.getOrderId()));
+
+        if (saga.getPaymentStatus() == SagaStatus.COMPLETED
+                && saga.getProductStatus() == SagaStatus.COMPLETED
+                && saga.getCartStatus() == SagaStatus.COMPLETED
+                && saga.getDeliveryStatus() == SagaStatus.COMPLETED
+        ) {
+            order.setStatus(OrderStatus.SHIPPED);
+        } else if (saga.getPaymentStatus() == SagaStatus.FAILED
+                || saga.getProductStatus() == SagaStatus.FAILED
+                || saga.getCartStatus() == SagaStatus.FAILED
+                || saga.getPaymentStatus() == SagaStatus.COMPENSATED
+                || saga.getProductStatus() == SagaStatus.COMPENSATED
+                || saga.getCartStatus() == SagaStatus.COMPENSATED
+        ) {
+            order.setStatus(OrderStatus.CANCELLED);
+        } else {
+            order.setStatus(OrderStatus.PENDING);
+        }
+
+        orderRepository.save(order);
+    }
+
+    @Transactional
+    public Orders placeOrder(String userId){
+        // Check currently processing order
+        Optional<OrderSaga> latestSagaOpt = orderSagaRepository.findFirstByUserIdOrderByCreatedAtDesc(userId);
+
+        if (latestSagaOpt.isPresent()) {
+            OrderSaga latestSaga = latestSagaOpt.get();
+
+            boolean isFinish =
+                    (latestSaga.getPaymentStatus() == SagaStatus.COMPLETED
+                    && latestSaga.getCartStatus() == SagaStatus.COMPLETED
+                    && latestSaga.getProductStatus() == SagaStatus.COMPLETED
+                    && latestSaga.getDeliveryStatus() == SagaStatus.COMPLETED)
+                    || (latestSaga.getPaymentStatus() == SagaStatus.COMPENSATED
+                    && latestSaga.getCartStatus() == SagaStatus.COMPENSATED
+                    && latestSaga.getProductStatus() == SagaStatus.COMPENSATED
+                    && latestSaga.getDeliveryStatus() == SagaStatus.COMPENSATED);
+
+            if (!isFinish) {
+                throw new IllegalStateException("Previous order still processing. Try again later.");
+            }
+        }
+
+        // Get User Cart
         CartResponse cartResponse = cartClient.getCartByUserId(userId);
 
         if(cartResponse.getItems().isEmpty()){
             throw new RuntimeException("No items in order");
         }
+
+        // Create order
         Orders order = new Orders();
         order.setOrderDate(LocalDateTime.now());
-        List<CartItemResponse> cartItems = cartResponse.getItems();
-        List<OrderItem> orderItems = new ArrayList<>();
-
-        for(CartItemResponse cartItem : cartItems){
-            OrderItem orderItem = new OrderItem();
-            orderItem.setOrderId(order.getId());
-            orderItem.setQuantity(cartItem.getQuantity());
-            orderItem.setProduct_id(cartItem.getProductId());
-            orderItems.add(orderItem);
-        }
-
+        order.setStatus(OrderStatus.PENDING);
+        List<OrderItem> orderItems = cartResponse.getItems().stream()
+                .map(ci -> OrderItem.builder()
+                        .orders(order)
+                        .quantity(ci.getQuantity())
+                        .productId(ci.getProductId())
+                        .build())
+                .toList();
+        order.setUserId(userId);
         order.setOrderItem(orderItems);
-        order.setTotalAmount(cartResponse.getTotalAmount());
+        order.setTotalAmount(cartResponse.getTotalPrice());
         orderRepository.save(order);
 
-        OrderResponse orderData=new OrderResponse();
-        orderData.setOrderId(order.getId());
-        orderData.setOrderAmount(order.getTotalAmount());
-        orderData.setStatus("Pending");
-        orderData.setPaymentStatus("Pending");
-        orderData.setOrderDate("Current" + "Date");
-        return orderData;
+        // Publish event order created
+        String sagaId = UUID.randomUUID().toString();
+        OrderSaga orderSaga = OrderSaga.builder()
+                .sagaId(sagaId)
+                .orderId(order.getId())
+                .userId(userId)
+                .paymentStatus(SagaStatus.PENDING)
+                .productStatus(SagaStatus.PENDING)
+                .cartStatus(SagaStatus.PENDING)
+                .deliveryStatus(SagaStatus.PENDING)
+                .build();
+        orderSagaRepository.save(orderSaga);
 
+        OrderPlacedMessage orderPlacedMessage = orderMapper.toOrderPlacedMessage(order);
+        EventMessage<OrderPlacedMessage> eventMessage = orderMapper.toEventMessage(sagaId, "order.created", order.getId().toString(), orderPlacedMessage);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                orderEventPublisher.publishOrderCreatedEvent(eventMessage);
+            }
+        });
+        return order;
     };
-    
+
     @Transactional
-    public Orders updateOrders(Integer orderId, OrderResponse orderDTo){
-        return null;
-    };
-    
-    @Transactional
-    public void deleteOrders(Integer userId,Integer orderId){
-        int deletedCount = orderRepository.deleteByIdAndCustomerId(userId, orderId);
-        if (deletedCount == 0) {
-            throw new EntityNotFoundException("Order not found");
+    public void compensatingOrder(Long orderId) {
+        Orders order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            return;
         }
-    };
-
-
-    public Orders getOrdersDetails(Integer orderId) {
-        return orderRepository.findById(orderId)
-                .orElseThrow(() -> new EntityNotFoundException("Order not found in the database."));
-    };
-
-    /// no exception here because function can return a [] list
-    public List<Orders> getAllUserOrder(Integer userId) {
-        List<Orders> orders = orderRepository.getAllOrderByUserId(userId);
-        if (orders.isEmpty()) {
-            throw new EntityNotFoundException("No orders found for the user in the database.");
-        }
-        return orders;
-    };
-
-    public List<Orders> viewAllOrders(){
-        List<Orders> orders = orderRepository.findAll();
-
-        if (orders.isEmpty()) {
-            throw new EntityNotFoundException("No orders found in the database.");
-        }
-        return orders;
-    };
-
-    public List<Orders> viewAllOrderByDate(Date date){
-        List<Orders> orders = orderRepository.findByOrderDateGreaterThanEqual(date);
-
-        if (orders.isEmpty()) {
-            throw new EntityNotFoundException("No orders found for the given date.");
-        }
-        return orders;
-    };
-
-
+        order.setStatus(OrderStatus.CANCELLED);
+        orderRepository.save(order);
+    }
 }

@@ -14,6 +14,6 @@ import java.math.BigDecimal;
 public class OrderResponse {
     private Long id;
     private Long userId;
-    private BigDecimal totalAmount;
+    private Double totalAmount;
     private String status;
 }

@@ -17,7 +17,7 @@ public class PaymentRequest {
      * Dùng khi client gửi yêu cầu thanh toán
      */
     private Long orderId;
-    private Long userId;
-    private BigDecimal amount;
+    private String userId;
+    private Double amount;
     private PaymentMethod paymentMethod;
 }
