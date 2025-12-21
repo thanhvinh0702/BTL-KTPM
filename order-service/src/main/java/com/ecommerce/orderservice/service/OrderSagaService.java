@@ -39,4 +39,7 @@ public class OrderSagaService {
 
         return orderSagaRepository.save(existing);
     }
+    public int markOrderFailedIfNotYet(String sagaId) {
+        return orderSagaRepository.markOrderFailedIfNotYet(sagaId);
+    }
 }

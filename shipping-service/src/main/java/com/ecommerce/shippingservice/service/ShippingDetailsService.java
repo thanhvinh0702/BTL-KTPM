@@ -36,7 +36,7 @@ public class ShippingDetailsService {
         try {
             sagaLogRepository.insertIfNotExists(
                     eventMessage.getEventId(),
-                    SagaStatus.PENDING,
+                    SagaStatus.PENDING.toString(),
                     objectMapper.writeValueAsString(eventMessage.getPayload()));
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
@@ -72,25 +72,7 @@ public class ShippingDetailsService {
             });
         }
         catch (Exception e) {
-            int processingUpdated = sagaLogRepository.updateStatusIfMatches(
-                    eventMessage.getEventId(),
-                    SagaStatus.PROCESSING,
-                    SagaStatus.COMPENSATED
-            );
-            EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
-                    .eventId(eventMessage.getEventId())
-                    .correlationId(eventMessage.getCorrelationId())
-                    .eventType("shipping.failed")
-                    .occurredAt(Instant.now())
-                    .source("shipping-service")
-                    .payload(null)
-                    .build();
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    shippingEventPublisher.publishShippingFailedEvent(eventPublishedMessage);
-                }
-            });
+            sagaLogService.failSaga(eventMessage.getEventId(), eventMessage.getCorrelationId());
             throw e;
         }
     }

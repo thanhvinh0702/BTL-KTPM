@@ -30,4 +30,13 @@ public interface OrderSagaRepository extends JpaRepository<OrderSaga, String> {
     int confirmOrderIfReady(String sagaId);
 
     Optional<OrderSaga> findFirstByUserIdOrderByCreatedAtDesc(String userId);
+
+    @Modifying
+    @Query("""
+    UPDATE OrderSaga s
+    SET s.orderStatus = 'CANCELLED'
+    WHERE s.sagaId = :sagaId
+    AND s.orderStatus <> 'CANCELLED'
+    """)
+    int markOrderFailedIfNotYet(String sagaId);
 }

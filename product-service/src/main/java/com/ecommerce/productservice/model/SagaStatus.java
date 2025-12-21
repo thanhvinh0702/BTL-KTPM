@@ -5,5 +5,6 @@ public enum SagaStatus {
     PENDING,
     PROCESSING,
     COMPENSATED,
+    COMPENSATING,
     FAILED
 }

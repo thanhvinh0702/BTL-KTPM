@@ -23,16 +23,14 @@ public interface SagaLogRepository extends JpaRepository<SagaLog, String> {
     boolean existsBySagaIdAndStatus(String sagaId, SagaStatus status);
 
     @Modifying
-    @Query("""
-    INSERT INTO SagaLog (sagaId, status, payload, createdAt, updatedAt)
-    SELECT :sagaId, :status, :payload, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-    WHERE NOT EXISTS (
-        SELECT 1 FROM SagaLog s WHERE s.sagaId = :sagaId
-    )
-    """)
+    @Query(value = """
+    INSERT INTO saga_log (saga_id, saga_status, payload, created_at, updated_at)
+    VALUES (:sagaId, :status, :payload, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    ON CONFLICT (saga_id) DO NOTHING
+    """, nativeQuery = true)
     int insertIfNotExists(
             String sagaId,
-            SagaStatus status,
+            String status,
             String payload
     );
 }

@@ -16,4 +16,5 @@ import com.ecommerce.orderservice.model.Orders;
 public interface OrderRepository extends JpaRepository<Orders, Long> {
 
     List<Orders> findAllByUserId(String userId);
+
 }

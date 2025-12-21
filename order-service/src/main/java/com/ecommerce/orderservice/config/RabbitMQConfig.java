@@ -23,17 +23,26 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.queue.payment-failed}")
     private String paymentFailedQueue;
 
+    @Value("${rabbitmq.queue.payment-compensated-success}")
+    private String paymentCompensatedSuccessQueue;
+
     @Value("${rabbitmq.queue.product-success}")
     private String productSuccessQueue;
 
     @Value("${rabbitmq.queue.product-failed}")
     private String productFailedQueue;
 
+    @Value("${rabbitmq.queue.product-compensated-success}")
+    private String productCompensatedSuccessQueue;
+
     @Value("${rabbitmq.queue.cart-success}")
     private String cartSuccessQueue;
 
     @Value("${rabbitmq.queue.cart-failed}")
     private String cartFailedQueue;
+
+    @Value("${rabbitmq.queue.cart-compensated-success}")
+    private String cartCompensatedSuccessQueue;
 
     @Value("${rabbitmq.queue.shipping-success}")
     private String shippingSuccessQueue;
@@ -57,6 +66,11 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue paymentCompensatedSuccessQueue() {
+        return new Queue(paymentCompensatedSuccessQueue, true);
+    }
+
+    @Bean
     public Queue productSuccessQueue() {
         return new Queue(productSuccessQueue, true);
     }
@@ -67,6 +81,11 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue productCompensatedSuccessQueue() {
+        return new Queue(productCompensatedSuccessQueue, true);
+    }
+
+    @Bean
     public Queue cartSuccessQueue() {
         return new Queue(cartSuccessQueue, true);
     }
@@ -74,6 +93,11 @@ public class RabbitMQConfig {
     @Bean
     public Queue cartFailedQueue() {
         return new Queue(cartFailedQueue, true);
+    }
+
+    @Bean
+    public Queue cartCompensatedSuccessQueue() {
+        return new Queue(cartCompensatedSuccessQueue, true);
     }
 
     @Bean
@@ -101,6 +125,13 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Binding bindingPaymentCompensatedSuccess() {
+        return BindingBuilder.bind(paymentCompensatedSuccessQueue())
+                .to(orderExchange())
+                .with("payment.compensated-success");
+    }
+
+    @Bean
     public Binding bindingProductSuccess() {
         return BindingBuilder.bind(productSuccessQueue())
                 .to(orderExchange())
@@ -115,6 +146,13 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Binding bindingProductCompensatedSuccess() {
+        return BindingBuilder.bind(productCompensatedSuccessQueue())
+                .to(orderExchange())
+                .with("product.compensate-success");
+    }
+
+    @Bean
     public Binding bindingCartSuccess() {
         return BindingBuilder.bind(cartSuccessQueue())
                 .to(orderExchange())
@@ -126,6 +164,13 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(cartFailedQueue())
                 .to(orderExchange())
                 .with("cart.failed");
+    }
+
+    @Bean
+    public Binding bindingCartCompensatedSuccess() {
+        return BindingBuilder.bind(cartCompensatedSuccessQueue())
+                .to(orderExchange())
+                .with("cart.compensated-success");
     }
 
     @Bean

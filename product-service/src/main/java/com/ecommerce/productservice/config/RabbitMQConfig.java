@@ -25,6 +25,11 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue productOrderCompensatedQueue(@Value("${rabbitmq.queue.product.order-compensate}") String queue) {
+        return QueueBuilder.durable(queue).build();
+    }
+
+    @Bean
     public Binding productOrderCreatedBinding(
             Queue productOrderCreatedQueue,
             TopicExchange orderExchange,
@@ -35,6 +40,19 @@ public class RabbitMQConfig {
                 .to(orderExchange)
                 .with(routingKey);
     }
+
+    @Bean
+    public Binding productOrderCompensatedBinding(
+            Queue productOrderCompensatedQueue,
+            TopicExchange orderExchange,
+            @Value("${rabbitmq.routing-key.product.order-compensate}") String routingKey
+    ) {
+        return BindingBuilder
+                .bind(productOrderCompensatedQueue)
+                .to(orderExchange)
+                .with(routingKey);
+    }
+
 
     @Bean
     public Jackson2JsonMessageConverter jacksonConverter() {

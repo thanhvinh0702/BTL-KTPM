@@ -25,6 +25,12 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.routing-key.cart.order-created}")
     private String cartOrderCreatedRoutingKey;
 
+    @Value("${rabbitmq.queue.cart.order-compensated}")
+    private String cartOrderCompensatedQueue;
+
+    @Value("${rabbitmq.routing-key.cart.order-compensated}")
+    private String cartOrderCompensatedRoutingKey;
+
     // Internal cart queue
     @Value("${rabbitmq.queue.cart.internal}")
     private String cartInternalQueue;
@@ -86,6 +92,11 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue cartOrderCompensatedQueue() {
+        return new Queue(cartOrderCompensatedQueue, true);
+    }
+
+    @Bean
     public Queue cartInternalQueue() {
         return new Queue(cartInternalQueue, true);
     }
@@ -116,6 +127,13 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(cartOrderCreatedQueue())
                 .to(orderExchange())
                 .with(cartOrderCreatedRoutingKey);
+    }
+
+    @Bean
+    public Binding cartOrderCompensatedBinding() {
+        return BindingBuilder.bind(cartOrderCompensatedQueue())
+                .to(orderExchange())
+                .with(cartOrderCompensatedRoutingKey);
     }
 
     @Bean

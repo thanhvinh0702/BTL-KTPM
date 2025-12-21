@@ -18,21 +18,41 @@ public class ProductEventPublisher {
     private String orderExchange;
 
     @Value("${rabbitmq.routing-key.product.success}")
-    private String paymentSuccessRoutingKey;
+    private String productSuccessRoutingKey;
 
     @Value("${rabbitmq.routing-key.product.failed}")
-    private String paymentFailedRoutingKey;
+    private String productFailedRoutingKey;
+
+    @Value("${rabbitmq.routing-key.product.compensated-success}")
+    private String productCompensationSuccessRoutingKey;
+
+    @Value("${rabbitmq.routing-key.product.compensated-failed}")
+    private String productCompensationFailedRoutingKey;
 
     public void publishProductSuccessEvent(EventMessage<Void> eventMessage) {
-        rabbitTemplate.convertAndSend(orderExchange, paymentSuccessRoutingKey, eventMessage);
+        rabbitTemplate.convertAndSend(orderExchange, productSuccessRoutingKey, eventMessage);
         log.info("Published event product success success {} for correlationId={}",
                 eventMessage.getEventType(),
                 eventMessage.getCorrelationId());
     }
 
     public void publishProductFailedEvent(EventMessage<Void> eventMessage) {
-        rabbitTemplate.convertAndSend(orderExchange, paymentFailedRoutingKey, eventMessage);
+        rabbitTemplate.convertAndSend(orderExchange, productFailedRoutingKey, eventMessage);
         log.info("Published event product failed success {} for correlationId={}",
+                eventMessage.getEventType(),
+                eventMessage.getCorrelationId());
+    }
+
+    public void publishCompensatedProductSuccessEvent(EventMessage<Void> eventMessage) {
+        rabbitTemplate.convertAndSend(orderExchange, productCompensationSuccessRoutingKey, eventMessage);
+        log.info("Published event compensate product success success {} for correlationId={}",
+                eventMessage.getEventType(),
+                eventMessage.getCorrelationId());
+    }
+
+    public void publishCompensatedProductFailedEvent(EventMessage<Void> eventMessage) {
+        rabbitTemplate.convertAndSend(orderExchange, productCompensationFailedRoutingKey, eventMessage);
+        log.info("Published event compensate product failed success {} for correlationId={}",
                 eventMessage.getEventType(),
                 eventMessage.getCorrelationId());
     }

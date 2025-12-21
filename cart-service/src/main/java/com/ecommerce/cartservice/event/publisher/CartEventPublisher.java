@@ -27,6 +27,12 @@ public class CartEventPublisher {
     @Value("${rabbitmq.routing-key.cart.failed}")
     private String cartEmptyFailedRoutingKey;
 
+    @Value("${rabbitmq.routing-key.cart.compensated-success}")
+    private String cartEmptyCompensatedSuccessRoutingKey;
+
+    @Value("${rabbitmq.routing-key.cart.compensated-failed}")
+    private String cartEmptyCompensatedFailedRoutingKey;
+
     @Value("${rabbitmq.routing-key.cart.checked-out}")
     private String cartCheckedOutRoutingKey;
 
@@ -52,4 +58,19 @@ public class CartEventPublisher {
                 eventMessage.getEventType(),
                 eventMessage.getCorrelationId());
     }
+
+    public void publishCartEmptyCompensatedSuccess(EventMessage<Void> eventMessage) {
+        rabbitTemplate.convertAndSend(orderExchangeName, cartEmptyCompensatedSuccessRoutingKey, eventMessage);
+        log.info("Published event cart compensated success {} for correlationId={}",
+                eventMessage.getEventType(),
+                eventMessage.getCorrelationId());
+    }
+
+    public void publishCartEmptyCompensatedFailed(EventMessage<Void> eventMessage) {
+        rabbitTemplate.convertAndSend(orderExchangeName, cartEmptyCompensatedFailedRoutingKey, eventMessage);
+        log.info("Published event cart compensated failed {} for correlationId={}",
+                eventMessage.getEventType(),
+                eventMessage.getCorrelationId());
+    }
 }
+

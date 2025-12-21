@@ -207,14 +207,7 @@ public class CartCommandService {
 
     @Transactional
     public void idempotencyEmptyCart(EventMessage<OrderCreatedPayload> eventMessage, Long userId) {
-        try {
-            sagaLogRepository.insertIfNotExists(
-                    eventMessage.getEventId(),
-                    SagaStatus.PENDING,
-                    objectMapper.writeValueAsString(eventMessage.getPayload()));
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+        sagaLogService.ensureSagaLogExists(eventMessage);
         int updated = sagaLogRepository.updateStatusIfMatches(
                 eventMessage.getEventId(),
                 SagaStatus.PENDING,
@@ -225,7 +218,7 @@ public class CartCommandService {
         }
         try {
             emptyCart(userId);
-            int processingUpdated = sagaLogRepository.updateStatusIfMatches(
+            sagaLogRepository.updateStatusIfMatches(
                     eventMessage.getEventId(),
                     SagaStatus.PROCESSING,
                     SagaStatus.COMPLETED
@@ -246,33 +239,86 @@ public class CartCommandService {
             });
         }
         catch (Exception e) {
-            sagaLogRepository.updateStatusIfMatches(
-                    eventMessage.getEventId(),
-                    SagaStatus.PROCESSING,
-                    SagaStatus.COMPENSATED
-            );
-            EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
-                    .eventId(eventMessage.getEventId())
-                    .correlationId(eventMessage.getCorrelationId())
-                    .eventType("cart.failed")
-                    .occurredAt(Instant.now())
-                    .source("cart-service")
-                    .payload(null)
-                    .build();
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    cartEventPublisher.publishCartEmptyFailed(eventPublishedMessage);
-                }
-            });
+            sagaLogService.failSaga(eventMessage.getEventId(), eventMessage.getCorrelationId());
             throw e;
         }
+    }
+
+    @Transactional
+    public void idempotencyCartCompensation(String sagaId) {
+        // No log case -> no compensation
+        int nullUpdated = sagaLogRepository.insertIfNotExists(
+                sagaId,
+                SagaStatus.COMPENSATED.toString(),
+                null
+        );
+        if (nullUpdated == 1) {
+            this.publishEventAfterCommit(sagaId, null);
+            return;
+        }
+        // Pending case -> no compensation
+        int pendingUpdated = sagaLogRepository.updateStatusIfMatches(sagaId, SagaStatus.PENDING, SagaStatus.COMPENSATED);
+        if (pendingUpdated == 1) {
+            this.publishEventAfterCommit(sagaId, null);
+            return;
+        }
+        // Processing case -> no compensation but throw error
+        if (sagaLogRepository.existsBySagaIdAndStatus(sagaId, SagaStatus.PROCESSING)) {
+            throw new RuntimeException("Saga is still processing");
+        }
+        // Completed case -> start compensation
+        int completedUpdated = sagaLogRepository.updateStatusIfMatches(sagaId, SagaStatus.COMPLETED, SagaStatus.COMPENSATING);
+        if (completedUpdated == 0) {
+            return;
+        }
+        // Safely compensate here
+        SagaLog sagaLog = sagaLogRepository.findById(sagaId).orElseThrow();
+        if (sagaLog.getPayload() == null) {
+            return;
+        }
+        OrderCreatedPayload payload = null;
+        try {
+            payload = objectMapper.readValue(sagaLog.getPayload(), OrderCreatedPayload.class);
+            fillCart(payload);
+            sagaLogRepository.updateStatusIfMatches(sagaId, SagaStatus.COMPENSATING, SagaStatus.COMPENSATED);
+            this.publishEventAfterCommit(sagaId, payload);
+        } catch (Exception e) {
+            sagaLogService.failCompensationSaga(sagaId, payload.getOrderId().toString());
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void publishEventAfterCommit(String sagaId, OrderCreatedPayload payload) {
+        EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
+                .eventId(sagaId)
+                .correlationId(payload != null ? payload.getOrderId().toString() : null)
+                .eventType("cart.compensated-success")
+                .occurredAt(Instant.now())
+                .source("cart-service")
+                .payload(null)
+                .build();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                cartEventPublisher.publishCartEmptyCompensatedSuccess(eventPublishedMessage);
+            }
+        });
     }
 
     public void emptyCart(Long userId) {
         Cart cart = cartCommandRepository.findByUserId(userId).orElseThrow(() ->
                 new RuntimeException("No cart found for user " + userId));
         clearCart(cart.getId());
+    }
+
+    public void fillCart(OrderCreatedPayload payload) {
+        for (OrderItem o : payload.getOrderItems()) {
+            this.addProductToCart(AddToCartRequest.builder()
+                            .userId(Long.parseLong(payload.getUserId()))
+                            .productId(o.getProductId())
+                            .quantity(o.getQuantity())
+                    .build());
+        }
     }
 
     public void checkout(String cartId) {

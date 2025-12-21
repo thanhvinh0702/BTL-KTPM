@@ -22,12 +22,31 @@ public class OrderCreatedConsumer {
         try {
             cartCommandService.idempotencyEmptyCart(eventMessage, Long.parseLong(eventMessage.getPayload().getUserId()));
             log.info("Cart empty successful for orderId={}, eventId={}",
-                    eventMessage.getPayload().getOrderId(),
+                    eventMessage.getCorrelationId(),
                     eventMessage.getEventId());
 
         } catch (Exception ex) {
             log.error("Cart empty failed for orderId={}, eventId={}, reason={}",
-                    eventMessage.getPayload().getOrderId(),
+                    eventMessage.getCorrelationId(),
+                    eventMessage.getEventId(),
+                    ex.getMessage(), ex);
+
+        }
+    }
+
+    @RabbitListener(
+            queues = "${rabbitmq.queue.cart.order-compensated}"
+    )
+    public void handleOrderCompensated(EventMessage<OrderCreatedPayload> eventMessage) {
+        try {
+            cartCommandService.idempotencyCartCompensation(eventMessage.getEventId());
+            log.info("Cart compensated successful for orderId={}, eventId={}",
+                    eventMessage.getCorrelationId(),
+                    eventMessage.getEventId());
+
+        } catch (Exception ex) {
+            log.error("Cart compensated failed for orderId={}, eventId={}, reason={}",
+                    eventMessage.getCorrelationId(),
                     eventMessage.getEventId(),
                     ex.getMessage(), ex);
 

@@ -20,7 +20,7 @@ public class OrderCreatedListener {
     )
     public void handleOrderCreatedEvent(EventMessage<OrderCreatedPayload> eventMessage) {
         try {
-            productService.idempotencyReserveProduct(eventMessage, eventMessage.getPayload());
+            productService.idempotencyReserveProduct(eventMessage);
             log.info("Product reserved successful for orderId={}, eventId={}, payload={}",
                     eventMessage.getPayload().getOrderId(),
                     eventMessage.getEventId(),
@@ -28,6 +28,25 @@ public class OrderCreatedListener {
         } catch (Exception e) {
             log.error("Product reserved failed for orderId={}, eventId={}, payload={}, reason={}",
                     eventMessage.getPayload().getOrderId(),
+                    eventMessage.getEventId(),
+                    eventMessage.getPayload(),
+                    e.getMessage(), e);
+        }
+    }
+
+    @RabbitListener(
+            queues = "${rabbitmq.queue.product.order-compensate}"
+    )
+    public void handleOrderCompensatedEvent(EventMessage<?> eventMessage) {
+        try {
+            productService.idempotencyProductCompensation(eventMessage.getEventId());
+            log.info("Product compensated successful for orderId={}, eventId={}, payload={}",
+                    eventMessage.getCorrelationId(),
+                    eventMessage.getEventId(),
+                    eventMessage.getPayload());
+        } catch (Exception e) {
+            log.error("Product compensated failed for orderId={}, eventId={}, payload={}, reason={}",
+                    eventMessage.getCorrelationId(),
                     eventMessage.getEventId(),
                     eventMessage.getPayload(),
                     e.getMessage(), e);

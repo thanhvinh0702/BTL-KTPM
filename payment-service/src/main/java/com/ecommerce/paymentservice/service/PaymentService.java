@@ -32,6 +32,7 @@ import java.util.NoSuchElementException;
 public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final SagaLogRepository sagaLogRepository;
+    private final SagaLogService sagaLogService;
     private final UserCreditService userCreditService;
     private final PaymentMapper paymentMapper;
     private final PaymentEventPublisher paymentEventPublisher;
@@ -39,15 +40,7 @@ public class PaymentService {
 
     @Transactional
     public void idempotencyPayment(EventMessage<OrderCreatedPayload> eventMessage, PaymentRequest request) {
-        try {
-            sagaLogRepository.insertIfNotExists(
-                    eventMessage.getEventId(),
-                    SagaStatus.PENDING,
-                    objectMapper.writeValueAsString(eventMessage.getPayload())
-            );
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+        sagaLogService.ensureSagaLogExists(eventMessage);
         int updated = sagaLogRepository.updateStatusIfMatches(
                 eventMessage.getEventId(),
                 SagaStatus.PENDING,
@@ -79,25 +72,7 @@ public class PaymentService {
             });
         }
         catch (Exception e) {
-            sagaLogRepository.updateStatusIfMatches(
-                    eventMessage.getEventId(),
-                    SagaStatus.PROCESSING,
-                    SagaStatus.COMPENSATED
-            );
-            EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
-                    .eventId(eventMessage.getEventId())
-                    .correlationId(eventMessage.getCorrelationId())
-                    .eventType("payment.failed")
-                    .occurredAt(Instant.now())
-                    .source("payment-service")
-                    .payload(null)
-                    .build();
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    paymentEventPublisher.publishPaymentFailedEvent(eventPublishedMessage);
-                }
-            });
+            sagaLogService.failSaga(eventMessage.getEventId(), eventMessage.getCorrelationId());
             throw e;
         }
     }
@@ -107,29 +82,30 @@ public class PaymentService {
         // No log case -> no compensation
         int nullUpdated = sagaLogRepository.insertIfNotExists(
                 sagaId,
-                SagaStatus.COMPENSATED,
+                SagaStatus.COMPENSATED.toString(),
                 null
         );
         if (nullUpdated == 1) {
+            publishEventAfterCommit(sagaId, null);
             return;
         }
         // Pending case -> no compensation
         int pendingUpdated = sagaLogRepository.updateStatusIfMatches(sagaId, SagaStatus.PENDING, SagaStatus.COMPENSATED);
         if (pendingUpdated == 1) {
+            publishEventAfterCommit(sagaId, null);
             return;
         }
         // Processing case -> no compensation but throw error
         if (sagaLogRepository.existsBySagaIdAndStatus(sagaId, SagaStatus.PROCESSING)) {
             throw new RuntimeException("Saga is still processing");
         }
-        // Completed case -> compensation
-        int completedUpdated = sagaLogRepository.updateStatusIfMatches(sagaId, SagaStatus.COMPLETED, SagaStatus.COMPENSATED);
+        // Completed case -> start compensation
+        int completedUpdated = sagaLogRepository.updateStatusIfMatches(sagaId, SagaStatus.COMPLETED, SagaStatus.COMPENSATING);
         if (completedUpdated == 0) {
             return;
         }
         // Safely compensate here
-        SagaLog sagaLog = sagaLogRepository.findById(sagaId)
-                .orElseThrow();
+        SagaLog sagaLog = sagaLogRepository.findById(sagaId).orElseThrow();
         if (sagaLog.getPayload() == null) {
             return;
         }
@@ -141,32 +117,29 @@ public class PaymentService {
                     .amount(payload.getTotalAmount())
                     .userId(payload.getUserId())
                     .build());
-            EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
-                    .eventId(sagaId)
-                    .correlationId(payload.getOrderId().toString())
-                    .eventType("payment.compensated-success")
-                    .occurredAt(Instant.now())
-                    .source("payment-service")
-                    .payload(null)
-                    .build();
-            paymentEventPublisher.publishPaymentCompensatedSuccessEvent(eventPublishedMessage);
+            sagaLogRepository.updateStatusIfMatches(sagaId, SagaStatus.COMPENSATING, SagaStatus.COMPENSATED);
+            publishEventAfterCommit(sagaId, payload);
         } catch (Exception e) {
-            sagaLogRepository.updateStatusIfMatches(
-                    sagaId,
-                    SagaStatus.COMPENSATED,
-                    SagaStatus.FAILED
-            );
-            EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
-                    .eventId(sagaId)
-                    .correlationId(payload.getOrderId().toString())
-                    .eventType("payment.compensated-failed")
-                    .occurredAt(Instant.now())
-                    .source("payment-service")
-                    .payload(null)
-                    .build();
-            paymentEventPublisher.publishPaymentCompensatedFailedEvent(eventPublishedMessage);
+            sagaLogService.failCompensationSaga(sagaId, payload.getOrderId().toString());
             throw new RuntimeException(e);
         }
+    }
+
+    private void publishEventAfterCommit(String sagaId, OrderCreatedPayload payload) {
+        EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
+                .eventId(sagaId)
+                .correlationId(payload != null ? payload.getOrderId().toString() : null)
+                .eventType("payment.compensated-success")
+                .occurredAt(Instant.now())
+                .source("payment-service")
+                .payload(null)
+                .build();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                paymentEventPublisher.publishPaymentCompensatedSuccessEvent(eventPublishedMessage);
+            }
+        });
     }
 
     public PaymentResponse refundPayment(PaymentRequest request) throws PaymentException {
