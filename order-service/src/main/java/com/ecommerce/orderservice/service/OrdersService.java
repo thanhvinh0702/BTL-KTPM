@@ -2,6 +2,7 @@ package com.ecommerce.orderservice.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,6 +15,7 @@ import com.ecommerce.orderservice.client.CartClient;
 import com.ecommerce.orderservice.repository.OrderSagaRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationAdapter;
@@ -22,6 +24,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrdersService {
 
     private final OrderRepository orderRepository;
@@ -96,6 +99,7 @@ public class OrdersService {
         List<OrderItem> orderItems = cartResponse.getItems().stream()
                 .map(ci -> OrderItem.builder()
                         .orders(order)
+                        .price(ci.getPriceAtAdd())
                         .quantity(ci.getQuantity())
                         .productId(ci.getProductId())
                         .build())
@@ -114,6 +118,7 @@ public class OrdersService {
                 .paymentStatus(SagaStatus.PENDING)
                 .productStatus(SagaStatus.PENDING)
                 .cartStatus(SagaStatus.PENDING)
+                .orderStatus(OrderStatus.PENDING)
                 .deliveryStatus(SagaStatus.PENDING)
                 .build();
         orderSagaRepository.save(orderSaga);
@@ -128,6 +133,27 @@ public class OrdersService {
         });
         return order;
     };
+
+    @Transactional
+    public void tryConfirmedOrder(EventMessage<?> eventMessage) {
+        log.info("Try to confirmed order!");
+        int update = orderSagaRepository.confirmOrderIfReady(eventMessage.getEventId());
+        if (update == 0) {
+            return;
+        }
+        OrderSaga orderSaga = orderSagaRepository.findById(eventMessage.getEventId()).orElseThrow(() ->
+                new NoSuchElementException("No saga found!"));
+        OrderPlacedMessage orderPlacedMessage = OrderPlacedMessage.builder()
+                .orderId(orderSaga.getOrderId())
+                .userId(orderSaga.getUserId())
+                .build();
+        EventMessage<OrderPlacedMessage> publishedMessage = orderMapper.toEventMessage(
+                eventMessage.getEventId(),
+                "order.confirmed",
+                eventMessage.getCorrelationId(),
+                orderPlacedMessage);
+        orderEventPublisher.publishOrderConfirmedEvent(publishedMessage);
+    }
 
     @Transactional
     public void compensatingOrder(Long orderId) {

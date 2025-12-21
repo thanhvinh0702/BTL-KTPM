@@ -24,6 +24,7 @@ public class PaymentEventListener {
     public void handlePaymentSuccess(EventMessage<Void> eventMessage) {
         orderSagaService.updateSaga(eventMessage.getEventId(), OrderSaga.builder().paymentStatus(SagaStatus.COMPLETED).build());
         log.info("Payment SUCCESS for sagaId={}, orderId={}", eventMessage.getEventId(), eventMessage.getCorrelationId());
+        ordersService.tryConfirmedOrder(eventMessage);
     }
 
     @RabbitListener(

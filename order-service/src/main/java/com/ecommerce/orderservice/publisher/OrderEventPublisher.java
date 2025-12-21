@@ -20,9 +20,19 @@ public class OrderEventPublisher {
     @Value("${rabbitmq.routing-key.order.created}")
     private String orderCreatedRoutingKey;
 
+    @Value("${rabbitmq.routing-key.shipping.order-confirmed}")
+    private String orderConfirmedRoutingKey;
+
     public void publishOrderCreatedEvent(EventMessage<?> eventMessage) {
         rabbitTemplate.convertAndSend(exchange, orderCreatedRoutingKey, eventMessage);
-        log.info("Published event {} for correlationId={}",
+        log.info("Published event order created {} for correlationId={}",
+                eventMessage.getEventType(),
+                eventMessage.getCorrelationId());
+    }
+
+    public void publishOrderConfirmedEvent(EventMessage<?> eventMessage) {
+        rabbitTemplate.convertAndSend(exchange, orderConfirmedRoutingKey, eventMessage);
+        log.info("Published event order confirmed {} for correlationId={}",
                 eventMessage.getEventType(),
                 eventMessage.getCorrelationId());
     }

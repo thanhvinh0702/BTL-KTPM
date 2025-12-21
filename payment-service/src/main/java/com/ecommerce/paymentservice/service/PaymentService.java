@@ -14,6 +14,8 @@ import com.ecommerce.paymentservice.model.SagaStatus;
 import com.ecommerce.paymentservice.publisher.PaymentEventPublisher;
 import com.ecommerce.paymentservice.repository.PaymentRepository;
 import com.ecommerce.paymentservice.repository.SagaLogRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -31,14 +33,22 @@ public class PaymentService {
     private final SagaLogService sagaLogService;
     private final PaymentMapper paymentMapper;
     private final PaymentEventPublisher paymentEventPublisher;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public void idempotencyPayment(EventMessage<OrderCreatedPayload> eventMessage, PaymentRequest request) {
         SagaLog sagaLog = sagaLogRepository.findById(eventMessage.getEventId())
-                .orElseGet(() -> SagaLog.builder()
-                        .sagaId(eventMessage.getEventId())
-                        .status(SagaStatus.PENDING)
-                        .build());
+                .orElseGet(() -> {
+                    try {
+                        return SagaLog.builder()
+                                .sagaId(eventMessage.getEventId())
+                                .status(SagaStatus.PENDING)
+                                .payload(objectMapper.writeValueAsString(eventMessage.getPayload()))
+                                .build();
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
         if (sagaLog.getStatus().equals(SagaStatus.COMPLETED) || sagaLog.getStatus().equals(SagaStatus.COMPENSATED)) {
             return;
         }

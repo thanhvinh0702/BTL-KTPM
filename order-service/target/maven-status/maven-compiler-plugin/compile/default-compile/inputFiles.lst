@@ -15,6 +15,7 @@
 /mnt/g/Subject/Software Architecture/BTL KTPM/order-service/src/main/java/com/ecommerce/orderservice/listener/CartEventListener.java
 /mnt/g/Subject/Software Architecture/BTL KTPM/order-service/src/main/java/com/ecommerce/orderservice/listener/PaymentEventListener.java
 /mnt/g/Subject/Software Architecture/BTL KTPM/order-service/src/main/java/com/ecommerce/orderservice/listener/ProductEventListener.java
+/mnt/g/Subject/Software Architecture/BTL KTPM/order-service/src/main/java/com/ecommerce/orderservice/listener/ShippingEventListener.java
 /mnt/g/Subject/Software Architecture/BTL KTPM/order-service/src/main/java/com/ecommerce/orderservice/mapper/OrderMapper.java
 /mnt/g/Subject/Software Architecture/BTL KTPM/order-service/src/main/java/com/ecommerce/orderservice/model/OrderItem.java
 /mnt/g/Subject/Software Architecture/BTL KTPM/order-service/src/main/java/com/ecommerce/orderservice/model/OrderSaga.java

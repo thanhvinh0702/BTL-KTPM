@@ -1,3 +1,4 @@
+com/ecommerce/orderservice/listener/ShippingEventListener.class
 com/ecommerce/orderservice/model/Orders.class
 com/ecommerce/orderservice/listener/ProductEventListener.class
 com/ecommerce/orderservice/dto/OrderItemResponse.class

@@ -35,6 +35,12 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.queue.cart-failed}")
     private String cartFailedQueue;
 
+    @Value("${rabbitmq.queue.shipping-success}")
+    private String shippingSuccessQueue;
+
+    @Value("${rabbitmq.queue.shipping-failed}")
+    private String shippingFailedQueue;
+
     @Bean
     public TopicExchange orderExchange() {
         return new TopicExchange(orderExchange);
@@ -68,6 +74,16 @@ public class RabbitMQConfig {
     @Bean
     public Queue cartFailedQueue() {
         return new Queue(cartFailedQueue, true);
+    }
+
+    @Bean
+    public Queue shippingSuccessQueue() {
+        return new Queue(shippingSuccessQueue, true);
+    }
+
+    @Bean
+    public Queue shippingFailedQueue() {
+        return new Queue(shippingFailedQueue, true);
     }
 
     @Bean
@@ -110,6 +126,20 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(cartFailedQueue())
                 .to(orderExchange())
                 .with("cart.failed");
+    }
+
+    @Bean
+    public Binding bindingShippingSuccess() {
+        return BindingBuilder.bind(shippingSuccessQueue())
+                .to(orderExchange())
+                .with("shipping.success");
+    }
+
+    @Bean
+    public Binding bindingShippingFailed() {
+        return BindingBuilder.bind(shippingFailedQueue())
+                .to(orderExchange())
+                .with("shipping.failed");
     }
 
     @Bean

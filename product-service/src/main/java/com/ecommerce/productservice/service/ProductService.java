@@ -10,6 +10,8 @@ import com.ecommerce.productservice.model.SagaStatus;
 import com.ecommerce.productservice.publisher.ProductEventPublisher;
 import com.ecommerce.productservice.repository.ProductRepository;
 import com.ecommerce.productservice.repository.SagaLogRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ public class ProductService {
     private final SagaLogRepository sagaLogRepository;
     private final SagaLogService sagaLogService;
     private final ProductEventPublisher productEventPublisher;
+    private final ObjectMapper objectMapper;
 
     public Product findById(Long productId) {
         return productRepository.findById(productId).orElseThrow(() ->
@@ -52,7 +55,17 @@ public class ProductService {
     @Transactional
     public void idempotencyReserveProduct(EventMessage<OrderCreatedPayload> eventMessage, OrderCreatedPayload payload) {
         SagaLog sagaLog = sagaLogRepository.findById(eventMessage.getEventId()).orElseGet(() ->
-                SagaLog.builder().sagaId(eventMessage.getEventId()).status(SagaStatus.PENDING).build());
+        {
+            try {
+                return SagaLog.builder()
+                        .sagaId(eventMessage.getEventId())
+                        .status(SagaStatus.PENDING)
+                        .payload(objectMapper.writeValueAsString(eventMessage.getPayload()))
+                        .build();
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+        });
         if (sagaLog.getStatus().equals(SagaStatus.COMPLETED) || sagaLog.getStatus().equals(SagaStatus.COMPENSATED)) {
             return;
         }

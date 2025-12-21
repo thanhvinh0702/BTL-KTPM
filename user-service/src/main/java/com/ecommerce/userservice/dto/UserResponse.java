@@ -1,9 +1,12 @@
 package com.ecommerce.userservice.dto;
 
+import com.ecommerce.userservice.mapper.AddressMapper;
+import com.ecommerce.userservice.model.Address;
 import com.ecommerce.userservice.model.Role;
 import com.ecommerce.userservice.model.User;
 import lombok.Builder;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 
 @Data
 @Builder
@@ -14,15 +17,6 @@ public class UserResponse {
     private String lastName;
     private Role role;
     private String phoneNumber;
+    private AddressResponse address;
 
-    public static UserResponse mapUserToUserResponse(User user) {
-        return UserResponse.builder()
-                .id(user.getId())
-                .email(user.getEmail())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
-                .role(user.getRole())
-                .phoneNumber(user.getPhoneNumber())
-                .build();
-    }
 }

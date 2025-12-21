@@ -30,6 +30,9 @@ public class User {
     private Role role;
     @Column(name = "phone_number", nullable = false)
     private String phoneNumber;
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "address_id")
+    private Address address;
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

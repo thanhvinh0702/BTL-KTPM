@@ -9,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Entity
 @Data
@@ -23,6 +24,9 @@ public class SagaLog {
     @Column(name = "saga_status", nullable = false)
     @Enumerated(EnumType.STRING)
     private SagaStatus status;
+
+    @Column(columnDefinition = "TEXT")
+    private String payload;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

@@ -19,6 +19,8 @@ import com.ecommerce.cartservice.exception.ConflictException;
 import com.ecommerce.cartservice.exception.NotFoundException;
 import com.ecommerce.cartservice.query.service.CartQueryModelSyncService;
 import com.ecommerce.cartservice.security.RequireOwner;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +47,7 @@ public class CartCommandService {
 
     private final SagaLogRepository sagaLogRepository;
     private final SagaLogService sagaLogService;
+    private final ObjectMapper objectMapper;
 
     /**
      * Add product to cart
@@ -202,7 +205,17 @@ public class CartCommandService {
     @Transactional
     public void idempotencyEmptyCart(EventMessage<OrderCreatedPayload> eventMessage, Long userId) {
         SagaLog sagaLog = sagaLogRepository.findById(eventMessage.getEventId()).orElseGet(() ->
-                SagaLog.builder().sagaId(eventMessage.getEventId()).status(SagaStatus.PENDING).build());
+        {
+            try {
+                return SagaLog.builder()
+                        .sagaId(eventMessage.getEventId())
+                        .status(SagaStatus.PENDING)
+                        .payload(objectMapper.writeValueAsString(eventMessage.getPayload()))
+                        .build();
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+        });
         try {
             emptyCart(userId);
             sagaLog.setStatus(SagaStatus.COMPLETED);

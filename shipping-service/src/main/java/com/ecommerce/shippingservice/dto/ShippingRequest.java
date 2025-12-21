@@ -6,15 +6,10 @@ import lombok.Data;
 @Data
 public class ShippingRequest {
 
-    @NotBlank
-    private String address;
-
-    @NotBlank
-    private String city;
-
-    @NotBlank
     private String state;
-
-    @NotBlank
-    private String postalCode;
+    private String street;
+    private String city;
+    private String flatNo;
+    private String zipCode;
+    private Long orderId;
 }

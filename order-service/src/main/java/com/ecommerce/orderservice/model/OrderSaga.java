@@ -42,6 +42,10 @@ public class OrderSaga {
     @Enumerated(EnumType.STRING)
     private SagaStatus deliveryStatus;
 
+    @Column(name = "order_status", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private OrderStatus orderStatus;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

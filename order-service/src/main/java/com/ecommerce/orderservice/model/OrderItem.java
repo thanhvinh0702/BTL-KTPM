@@ -34,6 +34,9 @@ public class OrderItem {
     @Column(name = "quantity")
     private Integer quantity;
 
+    @Column(nullable = false)
+    private Double price;
+
     @Column(name = "product_id")
     private Long productId;
 }

@@ -24,6 +24,7 @@ public class CartEventListener {
     public void handleCartSuccess(EventMessage<Void> eventMessage) {
         orderSagaService.updateSaga(eventMessage.getEventId(), OrderSaga.builder().cartStatus(SagaStatus.COMPLETED).build());
         log.info("Cart SUCCESS for sagaId={}, orderId={}", eventMessage.getEventId(), eventMessage.getCorrelationId());
+        ordersService.tryConfirmedOrder(eventMessage);
     }
 
     @RabbitListener(
