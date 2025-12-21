@@ -1,6 +1,7 @@
 package com.ecommerce.orderservice.repository;
 
 import com.ecommerce.orderservice.model.OrderSaga;
+import com.ecommerce.orderservice.model.SagaStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;

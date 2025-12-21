@@ -15,6 +15,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 
@@ -31,25 +33,29 @@ public class ShippingDetailsService {
 
     @Transactional
     public void idempotencyCreateShippingDetails(EventMessage<OrderCreatedPayload> eventMessage) {
-        SagaLog sagaLog = sagaLogRepository.findById(eventMessage.getEventId())
-                .orElseGet(() -> {
-                    try {
-                        return SagaLog.builder()
-                                .sagaId(eventMessage.getEventId())
-                                .status(SagaStatus.PENDING)
-                                .payload(objectMapper.writeValueAsString(eventMessage.getPayload()))
-                                .build();
-                    } catch (JsonProcessingException e) {
-                        throw new RuntimeException(e);
-                    }
-                });
-        if (sagaLog.getStatus().equals(SagaStatus.COMPLETED) || sagaLog.getStatus().equals(SagaStatus.COMPENSATED)) {
+        try {
+            sagaLogRepository.insertIfNotExists(
+                    eventMessage.getEventId(),
+                    SagaStatus.PENDING,
+                    objectMapper.writeValueAsString(eventMessage.getPayload()));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+        int updated = sagaLogRepository.updateStatusIfMatches(
+                eventMessage.getEventId(),
+                SagaStatus.PENDING,
+                SagaStatus.PROCESSING
+        );
+        if (updated == 0) {
             return;
         }
         try {
             createShippingDetails(eventMessage.getPayload().getUserId(), eventMessage.getPayload().getOrderId());
-            sagaLog.setStatus(SagaStatus.COMPLETED);
-            sagaLogService.save(sagaLog);
+            int processingUpdated = sagaLogRepository.updateStatusIfMatches(
+                    eventMessage.getEventId(),
+                    SagaStatus.PROCESSING,
+                    SagaStatus.COMPLETED
+            );
             EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
                     .eventId(eventMessage.getEventId())
                     .correlationId(eventMessage.getCorrelationId())
@@ -58,11 +64,19 @@ public class ShippingDetailsService {
                     .source("shipping-service")
                     .payload(null)
                     .build();
-            shippingEventPublisher.publishShippingSuccessEvent(eventPublishedMessage);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    shippingEventPublisher.publishShippingSuccessEvent(eventPublishedMessage);
+                }
+            });
         }
         catch (Exception e) {
-            sagaLog.setStatus(SagaStatus.COMPENSATED);
-            sagaLogService.save(sagaLog);
+            int processingUpdated = sagaLogRepository.updateStatusIfMatches(
+                    eventMessage.getEventId(),
+                    SagaStatus.PROCESSING,
+                    SagaStatus.COMPENSATED
+            );
             EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
                     .eventId(eventMessage.getEventId())
                     .correlationId(eventMessage.getCorrelationId())
@@ -71,7 +85,12 @@ public class ShippingDetailsService {
                     .source("shipping-service")
                     .payload(null)
                     .build();
-            shippingEventPublisher.publishShippingFailedEvent(eventPublishedMessage);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    shippingEventPublisher.publishShippingFailedEvent(eventPublishedMessage);
+                }
+            });
             throw e;
         }
     }

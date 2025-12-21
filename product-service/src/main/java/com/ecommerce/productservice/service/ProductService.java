@@ -5,7 +5,6 @@ import com.ecommerce.productservice.dto.message.EventMessage;
 import com.ecommerce.productservice.dto.message.OrderCreatedPayload;
 import com.ecommerce.productservice.dto.message.OrderItem;
 import com.ecommerce.productservice.model.Product;
-import com.ecommerce.productservice.model.SagaLog;
 import com.ecommerce.productservice.model.SagaStatus;
 import com.ecommerce.productservice.publisher.ProductEventPublisher;
 import com.ecommerce.productservice.repository.ProductRepository;
@@ -16,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.List;
@@ -54,24 +55,29 @@ public class ProductService {
 
     @Transactional
     public void idempotencyReserveProduct(EventMessage<OrderCreatedPayload> eventMessage, OrderCreatedPayload payload) {
-        SagaLog sagaLog = sagaLogRepository.findById(eventMessage.getEventId()).orElseGet(() ->
-        {
-            try {
-                return SagaLog.builder()
-                        .sagaId(eventMessage.getEventId())
-                        .status(SagaStatus.PENDING)
-                        .payload(objectMapper.writeValueAsString(eventMessage.getPayload()))
-                        .build();
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-        });
-        if (sagaLog.getStatus().equals(SagaStatus.COMPLETED) || sagaLog.getStatus().equals(SagaStatus.COMPENSATED)) {
+        try {
+            sagaLogRepository.insertIfNotExists(
+                    eventMessage.getEventId(),
+                    SagaStatus.PENDING,
+                    objectMapper.writeValueAsString(eventMessage.getPayload()));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+        int updated = sagaLogRepository.updateStatusIfMatches(
+                eventMessage.getEventId(),
+                SagaStatus.PENDING,
+                SagaStatus.PROCESSING
+        );
+        if (updated == 0) {
             return;
         }
         try {
+            int processedUpdated = sagaLogRepository.updateStatusIfMatches(
+                    eventMessage.getEventId(),
+                    SagaStatus.PROCESSING,
+                    SagaStatus.COMPLETED
+            );
             reserveProduct(payload);
-            sagaLog.setStatus(SagaStatus.COMPLETED);
             EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
                     .eventId(eventMessage.getEventId())
                     .correlationId(eventMessage.getCorrelationId())
@@ -80,11 +86,19 @@ public class ProductService {
                     .source("product-service")
                     .payload(null)
                     .build();
-            productEventPublisher.publishProductSuccessEvent(eventPublishedMessage);
-            sagaLogService.save(sagaLog);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    productEventPublisher.publishProductSuccessEvent(eventPublishedMessage);
+                }
+            });
         }
         catch (Exception e) {
-            sagaLog.setStatus(SagaStatus.COMPENSATED);
+            int processedUpdated = sagaLogRepository.updateStatusIfMatches(
+                    eventMessage.getEventId(),
+                    SagaStatus.PROCESSING,
+                    SagaStatus.COMPENSATED
+            );
             EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
                     .eventId(eventMessage.getEventId())
                     .correlationId(eventMessage.getCorrelationId())
@@ -93,8 +107,12 @@ public class ProductService {
                     .source("product-service")
                     .payload(null)
                     .build();
-            productEventPublisher.publishProductFailedEvent(eventPublishedMessage);
-            sagaLogService.save(sagaLog);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    productEventPublisher.publishProductFailedEvent(eventPublishedMessage);
+                }
+            });
             throw e;
         }
     }

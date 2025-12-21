@@ -25,6 +25,11 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue paymentOrderCompensatedQueue(@Value("${rabbitmq.queue.payment.order-compensate}") String queue) {
+        return QueueBuilder.durable(queue).build();
+    }
+
+    @Bean
     public Binding paymentOrderCreatedBinding(
             Queue paymentOrderCreatedQueue,
             TopicExchange orderExchange,
@@ -32,6 +37,18 @@ public class RabbitMQConfig {
     ) {
         return BindingBuilder
                 .bind(paymentOrderCreatedQueue)
+                .to(orderExchange)
+                .with(routingKey);
+    }
+
+    @Bean
+    public Binding paymentOrderCompensatedBinding(
+            Queue paymentOrderCompensatedQueue,
+            TopicExchange orderExchange,
+            @Value("${rabbitmq.routing-key.payment.order-compensate}") String routingKey
+    ) {
+        return BindingBuilder
+                .bind(paymentOrderCompensatedQueue)
                 .to(orderExchange)
                 .with(routingKey);
     }

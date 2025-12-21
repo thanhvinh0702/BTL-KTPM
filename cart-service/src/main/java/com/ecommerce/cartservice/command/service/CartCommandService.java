@@ -24,6 +24,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -204,22 +207,29 @@ public class CartCommandService {
 
     @Transactional
     public void idempotencyEmptyCart(EventMessage<OrderCreatedPayload> eventMessage, Long userId) {
-        SagaLog sagaLog = sagaLogRepository.findById(eventMessage.getEventId()).orElseGet(() ->
-        {
-            try {
-                return SagaLog.builder()
-                        .sagaId(eventMessage.getEventId())
-                        .status(SagaStatus.PENDING)
-                        .payload(objectMapper.writeValueAsString(eventMessage.getPayload()))
-                        .build();
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        try {
+            sagaLogRepository.insertIfNotExists(
+                    eventMessage.getEventId(),
+                    SagaStatus.PENDING,
+                    objectMapper.writeValueAsString(eventMessage.getPayload()));
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+        int updated = sagaLogRepository.updateStatusIfMatches(
+                eventMessage.getEventId(),
+                SagaStatus.PENDING,
+                SagaStatus.PROCESSING
+        );
+        if (updated == 0) {
+            return;
+        }
         try {
             emptyCart(userId);
-            sagaLog.setStatus(SagaStatus.COMPLETED);
-            sagaLogService.save(sagaLog);
+            int processingUpdated = sagaLogRepository.updateStatusIfMatches(
+                    eventMessage.getEventId(),
+                    SagaStatus.PROCESSING,
+                    SagaStatus.COMPLETED
+            );
             EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
                     .eventId(eventMessage.getEventId())
                     .correlationId(eventMessage.getCorrelationId())
@@ -228,11 +238,19 @@ public class CartCommandService {
                     .source("cart-service")
                     .payload(null)
                     .build();
-            cartEventPublisher.publishCartEmptySuccess(eventPublishedMessage);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    cartEventPublisher.publishCartEmptySuccess(eventPublishedMessage);
+                }
+            });
         }
         catch (Exception e) {
-            sagaLog.setStatus(SagaStatus.COMPENSATED);
-            sagaLogService.save(sagaLog);
+            sagaLogRepository.updateStatusIfMatches(
+                    eventMessage.getEventId(),
+                    SagaStatus.PROCESSING,
+                    SagaStatus.COMPENSATED
+            );
             EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
                     .eventId(eventMessage.getEventId())
                     .correlationId(eventMessage.getCorrelationId())
@@ -241,7 +259,12 @@ public class CartCommandService {
                     .source("cart-service")
                     .payload(null)
                     .build();
-            cartEventPublisher.publishCartEmptyFailed(eventPublishedMessage);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    cartEventPublisher.publishCartEmptyFailed(eventPublishedMessage);
+                }
+            });
             throw e;
         }
     }

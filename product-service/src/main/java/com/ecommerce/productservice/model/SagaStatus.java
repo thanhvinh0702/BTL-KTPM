@@ -2,7 +2,8 @@ package com.ecommerce.productservice.model;
 
 public enum SagaStatus {
     COMPLETED,
-    COMPENSATED,
     PENDING,
+    PROCESSING,
+    COMPENSATED,
     FAILED
 }

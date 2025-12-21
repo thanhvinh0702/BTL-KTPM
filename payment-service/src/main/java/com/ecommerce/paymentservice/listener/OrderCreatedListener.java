@@ -40,4 +40,22 @@ public class OrderCreatedListener {
         }
     }
 
+    @RabbitListener(
+            queues = "${rabbitmq.queue.payment.order-compensate}"
+    )
+    public void handleOrderCompensated(EventMessage<?> eventMessage) {
+        try {
+            paymentService.idempotencyPaymentCompensation(eventMessage.getEventId());
+            log.info("Payment compensated successful for orderId={}, eventId={}",
+                    eventMessage.getCorrelationId(),
+                    eventMessage.getEventId());
+        }
+        catch (Exception e) {
+            log.error("Payment compensated failed for orderId={}, eventId={}, reason={}",
+                    eventMessage.getCorrelationId(),
+                    eventMessage.getEventId(),
+                    e.getMessage(), e);
+        }
+    }
+
 }

@@ -23,6 +23,12 @@ public class PaymentEventPublisher {
     @Value("${rabbitmq.routing-key.payment.failed}")
     private String paymentFailedRoutingKey;
 
+    @Value("${rabbitmq.routing-key.payment.compensated-success}")
+    private String paymentCompensatedSuccessRoutingKey;
+
+    @Value("${rabbitmq.routing-key.payment.compensated-failed}")
+    private String paymentCompensatedFailedRoutingKey;
+
     public void publishPaymentSuccessEvent(EventMessage<Void> eventMessage) {
         rabbitTemplate.convertAndSend(orderExchange, paymentSuccessRoutingKey, eventMessage);
         log.info("Published event payment success success {} for correlationId={}",
@@ -33,6 +39,20 @@ public class PaymentEventPublisher {
     public void publishPaymentFailedEvent(EventMessage<Void> eventMessage) {
         rabbitTemplate.convertAndSend(orderExchange, paymentFailedRoutingKey, eventMessage);
         log.info("Published event payment failed success {} for correlationId={}",
+                eventMessage.getEventType(),
+                eventMessage.getCorrelationId());
+    }
+
+    public void publishPaymentCompensatedSuccessEvent(EventMessage<Void> eventMessage) {
+        rabbitTemplate.convertAndSend(orderExchange, paymentCompensatedSuccessRoutingKey, eventMessage);
+        log.info("Published event payment compensated success success {} for correlationId={}",
+                eventMessage.getEventType(),
+                eventMessage.getCorrelationId());
+    }
+
+    public void publishPaymentCompensatedFailedEvent(EventMessage<Void> eventMessage) {
+        rabbitTemplate.convertAndSend(orderExchange, paymentCompensatedFailedRoutingKey, eventMessage);
+        log.info("Published event payment compensated failed success {} for correlationId={}",
                 eventMessage.getEventType(),
                 eventMessage.getCorrelationId());
     }

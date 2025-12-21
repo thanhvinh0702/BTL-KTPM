@@ -20,9 +20,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.NoSuchElementException;
 
 @Service
 @RequiredArgsConstructor
@@ -30,32 +33,36 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final SagaLogRepository sagaLogRepository;
     private final UserCreditService userCreditService;
-    private final SagaLogService sagaLogService;
     private final PaymentMapper paymentMapper;
     private final PaymentEventPublisher paymentEventPublisher;
     private final ObjectMapper objectMapper;
 
     @Transactional
     public void idempotencyPayment(EventMessage<OrderCreatedPayload> eventMessage, PaymentRequest request) {
-        SagaLog sagaLog = sagaLogRepository.findById(eventMessage.getEventId())
-                .orElseGet(() -> {
-                    try {
-                        return SagaLog.builder()
-                                .sagaId(eventMessage.getEventId())
-                                .status(SagaStatus.PENDING)
-                                .payload(objectMapper.writeValueAsString(eventMessage.getPayload()))
-                                .build();
-                    } catch (JsonProcessingException e) {
-                        throw new RuntimeException(e);
-                    }
-                });
-        if (sagaLog.getStatus().equals(SagaStatus.COMPLETED) || sagaLog.getStatus().equals(SagaStatus.COMPENSATED)) {
+        try {
+            sagaLogRepository.insertIfNotExists(
+                    eventMessage.getEventId(),
+                    SagaStatus.PENDING,
+                    objectMapper.writeValueAsString(eventMessage.getPayload())
+            );
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+        int updated = sagaLogRepository.updateStatusIfMatches(
+                eventMessage.getEventId(),
+                SagaStatus.PENDING,
+                SagaStatus.PROCESSING
+        );
+        if (updated == 0) {
             return;
         }
         try {
             makePayment(request);
-            sagaLog.setStatus(SagaStatus.COMPLETED);
-            sagaLogService.save(sagaLog);
+            int processingUpdated = sagaLogRepository.updateStatusIfMatches(
+                    eventMessage.getEventId(),
+                    SagaStatus.PROCESSING,
+                    SagaStatus.COMPLETED
+            );
             EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
                     .eventId(eventMessage.getEventId())
                     .correlationId(eventMessage.getCorrelationId())
@@ -64,11 +71,19 @@ public class PaymentService {
                     .source("payment-service")
                     .payload(null)
                     .build();
-            paymentEventPublisher.publishPaymentSuccessEvent(eventPublishedMessage);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    paymentEventPublisher.publishPaymentSuccessEvent(eventPublishedMessage);
+                }
+            });
         }
         catch (Exception e) {
-            sagaLog.setStatus(SagaStatus.COMPENSATED);
-            sagaLogService.save(sagaLog);
+            sagaLogRepository.updateStatusIfMatches(
+                    eventMessage.getEventId(),
+                    SagaStatus.PROCESSING,
+                    SagaStatus.COMPENSATED
+            );
             EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
                     .eventId(eventMessage.getEventId())
                     .correlationId(eventMessage.getCorrelationId())
@@ -77,9 +92,104 @@ public class PaymentService {
                     .source("payment-service")
                     .payload(null)
                     .build();
-            paymentEventPublisher.publishPaymentFailedEvent(eventPublishedMessage);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    paymentEventPublisher.publishPaymentFailedEvent(eventPublishedMessage);
+                }
+            });
             throw e;
         }
+    }
+
+    @Transactional
+    public void idempotencyPaymentCompensation(String sagaId) {
+        // No log case -> no compensation
+        int nullUpdated = sagaLogRepository.insertIfNotExists(
+                sagaId,
+                SagaStatus.COMPENSATED,
+                null
+        );
+        if (nullUpdated == 1) {
+            return;
+        }
+        // Pending case -> no compensation
+        int pendingUpdated = sagaLogRepository.updateStatusIfMatches(sagaId, SagaStatus.PENDING, SagaStatus.COMPENSATED);
+        if (pendingUpdated == 1) {
+            return;
+        }
+        // Processing case -> no compensation but throw error
+        if (sagaLogRepository.existsBySagaIdAndStatus(sagaId, SagaStatus.PROCESSING)) {
+            throw new RuntimeException("Saga is still processing");
+        }
+        // Completed case -> compensation
+        int completedUpdated = sagaLogRepository.updateStatusIfMatches(sagaId, SagaStatus.COMPLETED, SagaStatus.COMPENSATED);
+        if (completedUpdated == 0) {
+            return;
+        }
+        // Safely compensate here
+        SagaLog sagaLog = sagaLogRepository.findById(sagaId)
+                .orElseThrow();
+        if (sagaLog.getPayload() == null) {
+            return;
+        }
+        OrderCreatedPayload payload = null;
+        try {
+            payload = objectMapper.readValue(sagaLog.getPayload(), OrderCreatedPayload.class);
+            refundPayment(PaymentRequest.builder()
+                    .orderId(payload.getOrderId())
+                    .amount(payload.getTotalAmount())
+                    .userId(payload.getUserId())
+                    .build());
+            EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
+                    .eventId(sagaId)
+                    .correlationId(payload.getOrderId().toString())
+                    .eventType("payment.compensated-success")
+                    .occurredAt(Instant.now())
+                    .source("payment-service")
+                    .payload(null)
+                    .build();
+            paymentEventPublisher.publishPaymentCompensatedSuccessEvent(eventPublishedMessage);
+        } catch (Exception e) {
+            sagaLogRepository.updateStatusIfMatches(
+                    sagaId,
+                    SagaStatus.COMPENSATED,
+                    SagaStatus.FAILED
+            );
+            EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
+                    .eventId(sagaId)
+                    .correlationId(payload.getOrderId().toString())
+                    .eventType("payment.compensated-failed")
+                    .occurredAt(Instant.now())
+                    .source("payment-service")
+                    .payload(null)
+                    .build();
+            paymentEventPublisher.publishPaymentCompensatedFailedEvent(eventPublishedMessage);
+            throw new RuntimeException(e);
+        }
+    }
+
+    public PaymentResponse refundPayment(PaymentRequest request) throws PaymentException {
+
+        // Subtract from user's credit
+        userCreditService.modifyUserCredit(request.getUserId(), request.getAmount());
+
+        // create payment record
+        Payment payment = Payment.builder()
+                .orderId(request.getOrderId())
+                .userId(request.getUserId())
+                .paymentAmount(request.getAmount())
+                .paymentDate(LocalDateTime.now())
+                .paymentMethod(
+                        request.getPaymentMethod() != null
+                                ? request.getPaymentMethod()
+                                : PaymentMethod.UPI
+                )
+                .paymentStatus(PaymentStatus.SUCCESSFUL)
+                .build();
+
+        Payment savedPayment = paymentRepository.save(payment);
+        return paymentMapper.toPaymentResponse(savedPayment);
     }
 
     public PaymentResponse makePayment(PaymentRequest request) throws PaymentException {
@@ -91,7 +201,7 @@ public class PaymentService {
         Payment payment = Payment.builder()
                 .orderId(request.getOrderId())
                 .userId(request.getUserId())
-                .paymentAmount(request.getAmount())
+                .paymentAmount(-request.getAmount())
                 .paymentDate(LocalDateTime.now())
                 .paymentMethod(
                         request.getPaymentMethod() != null
