@@ -1,10 +1,7 @@
 package com.ecommerce.orderservice.service;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 import com.ecommerce.orderservice.dto.*;
 import com.ecommerce.orderservice.mapper.OrderMapper;
@@ -16,6 +13,7 @@ import com.ecommerce.orderservice.repository.OrderSagaRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationAdapter;
@@ -32,35 +30,6 @@ public class OrdersService {
     private final OrderMapper orderMapper;
     private final OrderEventPublisher orderEventPublisher;
     private final OrderSagaRepository orderSagaRepository;
-
-    @Transactional
-    public void syncOrderStatus(String sagaId) {
-        OrderSaga saga = orderSagaRepository.findById(sagaId)
-                .orElseThrow(() -> new IllegalArgumentException("Saga not found: " + sagaId));
-
-        Orders order = orderRepository.findById(saga.getOrderId())
-                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + saga.getOrderId()));
-
-        if (saga.getPaymentStatus() == SagaStatus.COMPLETED
-                && saga.getProductStatus() == SagaStatus.COMPLETED
-                && saga.getCartStatus() == SagaStatus.COMPLETED
-                && saga.getDeliveryStatus() == SagaStatus.COMPLETED
-        ) {
-            order.setStatus(OrderStatus.SHIPPED);
-        } else if (saga.getPaymentStatus() == SagaStatus.FAILED
-                || saga.getProductStatus() == SagaStatus.FAILED
-                || saga.getCartStatus() == SagaStatus.FAILED
-                || saga.getPaymentStatus() == SagaStatus.COMPENSATED
-                || saga.getProductStatus() == SagaStatus.COMPENSATED
-                || saga.getCartStatus() == SagaStatus.COMPENSATED
-        ) {
-            order.setStatus(OrderStatus.CANCELLED);
-        } else {
-            order.setStatus(OrderStatus.PENDING);
-        }
-
-        orderRepository.save(order);
-    }
 
     @Transactional
     public Orders placeOrder(String userId){
@@ -164,4 +133,36 @@ public class OrdersService {
         order.setStatus(OrderStatus.CANCELLED);
         orderRepository.save(order);
     }
+
+    /**
+     * GET METHOD
+     */
+    public List<OrderResponse> getAllOrder() {
+        return orderRepository.findAll().stream().map(orderMapper::toResponse).toList();
+    }
+
+    public List<OrderResponse> getAllOrderByUserId(String userId) {
+        return orderRepository.findAllByUserId(userId).stream().map(orderMapper::toResponse).toList();
+    }
+
+    public OrderResponse getOrderById(Long orderId) {
+        return orderMapper.toResponse(orderRepository.findById(orderId).orElseThrow());
+    }
+
+    public List<OrderResponse> getAllOrderByDate(LocalDateTime date) {
+        List<Orders> orders = orderRepository.findByOrderDateGreaterThanEqual(date);
+        return orders.stream().map(orderMapper::toResponse).toList();
+    }
+
+    /**
+     * DELETE METHOD
+     */
+    public void deleteOrder(String userId, Long orderId) {
+        Orders orders = orderRepository.findById(orderId).orElseThrow();
+        if (!orders.getUserId().equals(userId)) {
+            throw new AccessDeniedException("Insufficient permission");
+        }
+        orderRepository.delete(orders);
+    }
+
 }

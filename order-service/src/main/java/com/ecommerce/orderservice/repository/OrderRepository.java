@@ -1,5 +1,6 @@
 package com.ecommerce.orderservice.repository;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 
@@ -14,6 +15,9 @@ import com.ecommerce.orderservice.model.Orders;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Orders, Long> {
+
+    @Query("SELECT o FROM Orders o WHERE o.orderDate >= :date")
+    List<Orders> findByOrderDateGreaterThanEqual(LocalDateTime date);
 
     List<Orders> findAllByUserId(String userId);
 

@@ -4,6 +4,7 @@ com/ecommerce/orderservice/listener/ShippingEventListener$1.class
 com/ecommerce/orderservice/listener/ProductEventListener.class
 com/ecommerce/orderservice/dto/OrderItemResponse.class
 com/ecommerce/orderservice/dto/OrderPlacedMessage$OrderPlacedMessageBuilder.class
+com/ecommerce/orderservice/dto/OrderItemResponse$OrderItemResponseBuilder.class
 com/ecommerce/orderservice/config/SecurityConfig$1.class
 com/ecommerce/orderservice/service/OrdersService$1.class
 com/ecommerce/orderservice/listener/CartEventListener.class
@@ -18,10 +19,12 @@ com/ecommerce/orderservice/dto/OrderPlacedMessage.class
 com/ecommerce/orderservice/service/OrdersService.class
 com/ecommerce/orderservice/dto/OrderResponse.class
 com/ecommerce/orderservice/advice/ExceptionControllerAdvice.class
+com/ecommerce/orderservice/mapper/OrderItemMapper.class
 com/ecommerce/orderservice/model/OrderSaga$OrderSagaBuilder.class
 com/ecommerce/orderservice/model/OrderSaga.class
 com/ecommerce/orderservice/publisher/OrderEventPublisher.class
 com/ecommerce/orderservice/security/OrderSecurity.class
+com/ecommerce/orderservice/dto/OrderResponse$OrderResponseBuilder.class
 com/ecommerce/orderservice/listener/ProductEventListener$1.class
 com/ecommerce/orderservice/mapper/OrderMapper.class
 com/ecommerce/orderservice/config/SecurityConfig.class
