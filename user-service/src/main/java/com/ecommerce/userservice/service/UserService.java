@@ -1,5 +1,6 @@
 package com.ecommerce.userservice.service;
 
+import com.ecommerce.userservice.dto.LoginResponse;
 import com.ecommerce.userservice.dto.RegisterRequest;
 import com.ecommerce.userservice.dto.UserResponse;
 import com.ecommerce.userservice.mapper.UserMapper;
@@ -42,16 +43,16 @@ public class UserService {
         return "User registered successfully";
     }
 
-    public String login(String email, String password) {
+    public LoginResponse login(String email, String password) {
         Optional<User> userOpt = repository.findByEmail(email);
         if (userOpt.isPresent() && encoder.matches(password, userOpt.get().getPassword())) {
-            return jwtUtil.generateToken(
+            return new LoginResponse(jwtUtil.generateToken(
                     userOpt.get().getId(),
                     email,
                     userOpt.get().getFirstName(),
                     userOpt.get().getLastName(),
                     userOpt.get().getRole(),
-                    userOpt.get().getPhoneNumber());
+                    userOpt.get().getPhoneNumber()), userOpt.get().getId());
         }
         throw new IllegalArgumentException("Invalid credentials");
     }

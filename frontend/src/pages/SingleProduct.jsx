@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from '../Router/api'
 import "../comp_css/SingleProduct.css";
-import axios from "axios";
 
 const SingleProduct = () => {
   const navigate = useNavigate();
@@ -11,8 +10,8 @@ const SingleProduct = () => {
   const userid = localStorage.getItem("userid");
 
   useEffect(() => {
-    axios
-      .get(`http://127.0.0.1:8080/ecom/products/${productId}`)
+    api
+      .get(`/api/v1/products/${productId}`)
       .then((response) => {
         setProduct(response.data);
       })
@@ -22,18 +21,36 @@ const SingleProduct = () => {
   }, [productId]);
 
   const addProductToCart = (productid) => {
+    // Lấy cartId từ localStorage (nếu có)
+    const cartId = localStorage.getItem("cartid");
+
+    // Tạo request body theo format AddToCartRequest
+    const requestBody = {
+      cartId: cartId || null, // Gửi null nếu chưa có cart
+      userId: userid,
+      productId: productid,
+      quantity: 1
+    };
+
     api
-      .post(
-        `/ecom/cart/add-product?userId=${userid}&productId=${productid}`
-      )
-      .then((response) => {
-        localStorage.setItem("cartid", response.data.cartId);
-        alert("Product added to Cart.....");
-      })
-      .catch((error) => {
-        alert("Product Alredy in cart......");
-      });
-  };
+        .post("/cart/add-product", requestBody)
+        .then((response) => {
+          // Lưu cartId vào localStorage nếu BE trả về
+          if (response.data.cartId) {
+            localStorage.setItem("cartid", response.data.cartId);
+          }
+          alert("Product added to Cart successfully!");
+        })
+        .catch((error) => {
+          if (error.response && error.response.data) {
+            // Hiển thị message lỗi từ BE
+            alert(error.response.data.message || "Error adding product to cart");
+          } else {
+            alert("Error adding product. Please try again later.");
+            console.error("Error adding to cart:", error);
+          }
+        });
+  }
   return (
     <>
     <h1 style={{color:"green",textAlign:"center",margin:"20px"}}>Single Product </h1>
@@ -53,7 +70,7 @@ const SingleProduct = () => {
           <div>
             <button
               onClick={() => {
-                addProductToCart(product.productId);
+                addProductToCart(productId);
               }}
             >
               Add to Cart

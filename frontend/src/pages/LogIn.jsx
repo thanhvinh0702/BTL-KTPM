@@ -43,8 +43,6 @@ const Login = () => {
     e.preventDefault();
 
     try {
-      // SỬA: Bỏ "http://localhost:8080", chỉ giữ lại endpoint
-      // Axios sẽ tự động ghép với Base URL đã cấu hình
       const response = await api.post("/api/v1/users/auth/login", {
         email: form.email,
         password: form.password
@@ -58,6 +56,7 @@ const Login = () => {
 
         localStorage.setItem("jwtToken", jwtToken);
         localStorage.setItem("name", form.email);
+        localStorage.setItem("userid", response.data.userid)
 
         alert("Login successfully");
         navigate("/");
