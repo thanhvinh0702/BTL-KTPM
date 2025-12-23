@@ -28,10 +28,10 @@ const Cart = () => {
   };
   const fetchCartData = () => {
     api
-      .get(`/ecom/cart/products/${cartId}`)
+      .get(`/cart/${userId}`)
       .then((response) => {
         setCartData(response.data);
-        setTotalAmount(response.data.totalAmount);
+        setTotalAmount(response.data.totalPrice);
       })
       .catch((error) => {
         console.error("Error fetching data from the API: ", error);
@@ -57,7 +57,7 @@ const Cart = () => {
 
   const removeProductfromCart = (productid) => {
     api
-      .delete(`/ecom/cart/remove-product/${cartId}/${productid}`)
+      .delete(`/cart/remove-product/${cartId}/${productid}`)
       .then((response) => {
         alert("Product removed from cart");
         fetchCartData();
@@ -69,9 +69,9 @@ const Cart = () => {
 
   const increaseCount = (productid) => {
     api
-      .put(`/ecom/cart/increase-productQty/${cartId}/${productid}`)
+      .put(`/cart/increase-productQty/${cartId}/${productid}`)
       .then((response) => {
-        setTotalAmount(response.data.totalAmount);
+        setTotalAmount(response.data.totalPrice);
         fetchCartData();
       })
       .catch((error) => {
@@ -81,9 +81,9 @@ const Cart = () => {
 
   const decreaseCount = (productid) => {
     api
-      .put(`ecom/cart/decrease-productQty/${cartId}/${productid}`)
+      .put(`/cart/decrease-productQty/${cartId}/${productid}`)
       .then((response) => {
-        setTotalAmount(response.data.totalAmount);
+        setTotalAmount(response.data.totalPrice);
         fetchCartData();
       })
       .catch((error) => {
@@ -94,22 +94,20 @@ const Cart = () => {
 
   return (
     <div className="cart-page">
-      {cartData.cartItems?.length > 0 ? (
+      {cartData.items?.length > 0 ? (
         <div className="cart-list">
-          {cartData.cartItems.map((item) => (
-            <div className="cart-card" key={item.cartItemId}>
+          {cartData.items.map((item) => (
+            <div className="cart-card" key={item.productId}>
               <div className="cartproduct-image1">
-                <img src={item.product.imageUrl} alt={item.product.name} />
+                <img src={item.productImage} alt={item.productName} />
               </div>
               <div className="cartproduct-info">
-                <h2>{item.product.name}</h2>
-                <p>Category: {item.product.category}</p>
-                <p>Description: {item.product.description}</p>
+                <h2>{item.productName}</h2>
                 <h2 className="cartproduct-price">
-                  Price: ₹ {item.product.price}
+                  Price: ₹ {item.priceAtAdd}
                 </h2>
                 <div className="increaseBtn">
-                  <button onClick={() => increaseCount(item.product.productId)}>
+                  <button onClick={() => increaseCount(item.productId)}>
                     +
                   </button>
                   <span
@@ -121,14 +119,14 @@ const Cart = () => {
                   >
                     {item.quantity}
                   </span>
-                  <button onClick={() => decreaseCount(item.product.productId)}>
+                  <button onClick={() => decreaseCount(item.productId)}>
                     -
                   </button>
                 </div>
                 <div>
                   <button
                     onClick={() =>
-                      removeProductfromCart(item.product.productId)
+                      removeProductfromCart(item.productId)
                     }
                   >
                     Remove
