@@ -63,8 +63,7 @@ public class CartCommandService {
                                 .id(UUID.randomUUID().toString())
                                 .userId(request.getUserId())
                                 .items(new ArrayList<>())
-                                .build()
-                ));
+                                .build()));
 
         // Call ProductService
         ProductResponse product = productClient.getProductById(request.getProductId());
@@ -77,7 +76,8 @@ public class CartCommandService {
         }
 
         // Check if product already exists
-        CartItem existingItem = cartItemCommandRepository.findByCartIdAndProductId(cart.getId(), request.getProductId());
+        CartItem existingItem = cartItemCommandRepository.findByCartIdAndProductId(cart.getId(),
+                request.getProductId());
 
         int requestedQty = request.getQuantity();
 
@@ -112,12 +112,12 @@ public class CartCommandService {
 
         // Sync command-query
         cartSyncPublisher.publish(CommandQuerySyncEvent.builder()
-                        .cartId(cart.getId())
-                        .userId(cart.getUserId())
-                        .cartItem(existingItem)
-                        .product(product)
-                        .type(EventType.ADD)
-                        .build());
+                .cartId(cart.getId())
+                .userId(cart.getUserId())
+                .cartItem(existingItem)
+                .product(product)
+                .type(EventType.ADD)
+                .build());
 
         return CartMapper.toResponse(cart);
     }
@@ -155,22 +155,27 @@ public class CartCommandService {
 
         // Apply quantity change
         if (newQty <= 0) {
-            cart.getItems().remove(item);
+            cartItemCommandRepository.delete(item);
+            cartSyncPublisher.publish(CommandQuerySyncEvent.builder()
+                    .cartId(cart.getId())
+                    .userId(cart.getUserId())
+                    .cartItem(item)
+                    .type(EventType.DELETE)
+                    .build());
         } else {
             item.setQuantity(newQty);
+            cartItemCommandRepository.save(item);
+            cartSyncPublisher.publish(CommandQuerySyncEvent.builder()
+                    .cartId(cart.getId())
+                    .userId(cart.getUserId())
+                    .cartItem(item)
+                    .type(EventType.UPDATE)
+                    .build());
         }
-
-        cartItemCommandRepository.save(item);
-
-        cartSyncPublisher.publish(CommandQuerySyncEvent.builder()
-                .cartId(cart.getId())
-                .userId(cart.getUserId())
-                .cartItem(item)
-                .type(EventType.UPDATE)
-                .build());
 
         return CartMapper.toResponse(cart);
     }
+
     /**
      * Remove a product
      */
@@ -180,11 +185,11 @@ public class CartCommandService {
         CartItem item = cartItemCommandRepository.findByCartIdAndProductId(cartId, productId);
         cartItemCommandRepository.delete(item);
         cartSyncPublisher.publish(CommandQuerySyncEvent.builder()
-                        .cartId(cart.getId())
-                        .userId(cart.getUserId())
-                        .cartItem(item)
-                        .type(EventType.DELETE)
-                        .build());
+                .cartId(cart.getId())
+                .userId(cart.getUserId())
+                .cartItem(item)
+                .type(EventType.DELETE)
+                .build());
 
         return CartMapper.toResponse(cart);
     }
@@ -199,10 +204,10 @@ public class CartCommandService {
         cartItemCommandRepository.deleteAllByCartId(cart.getId());
 
         cartSyncPublisher.publish(CommandQuerySyncEvent.builder()
-                    .cartId(cart.getId())
-                    .userId(cart.getUserId())
-                    .type(EventType.CLEAR)
-                    .build());
+                .cartId(cart.getId())
+                .userId(cart.getUserId())
+                .type(EventType.CLEAR)
+                .build());
     }
 
     @Transactional
@@ -211,8 +216,7 @@ public class CartCommandService {
         int updated = sagaLogRepository.updateStatusIfMatches(
                 eventMessage.getEventId(),
                 SagaStatus.PENDING,
-                SagaStatus.PROCESSING
-        );
+                SagaStatus.PROCESSING);
         if (updated == 0) {
             return;
         }
@@ -221,8 +225,7 @@ public class CartCommandService {
             sagaLogRepository.updateStatusIfMatches(
                     eventMessage.getEventId(),
                     SagaStatus.PROCESSING,
-                    SagaStatus.COMPLETED
-            );
+                    SagaStatus.COMPLETED);
             EventMessage<Void> eventPublishedMessage = EventMessage.<Void>builder()
                     .eventId(eventMessage.getEventId())
                     .correlationId(eventMessage.getCorrelationId())
@@ -237,8 +240,7 @@ public class CartCommandService {
                     cartEventPublisher.publishCartEmptySuccess(eventPublishedMessage);
                 }
             });
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             sagaLogService.failSaga(eventMessage.getEventId(), eventMessage.getCorrelationId());
             throw e;
         }
@@ -250,14 +252,14 @@ public class CartCommandService {
         int nullUpdated = sagaLogRepository.insertIfNotExists(
                 sagaId,
                 SagaStatus.COMPENSATED.toString(),
-                null
-        );
+                null);
         if (nullUpdated == 1) {
             this.publishEventAfterCommit(sagaId, null);
             return;
         }
         // Pending case -> no compensation
-        int pendingUpdated = sagaLogRepository.updateStatusIfMatches(sagaId, SagaStatus.PENDING, SagaStatus.COMPENSATED);
+        int pendingUpdated = sagaLogRepository.updateStatusIfMatches(sagaId, SagaStatus.PENDING,
+                SagaStatus.COMPENSATED);
         if (pendingUpdated == 1) {
             this.publishEventAfterCommit(sagaId, null);
             return;
@@ -267,7 +269,8 @@ public class CartCommandService {
             throw new RuntimeException("Saga is still processing");
         }
         // Completed case -> start compensation
-        int completedUpdated = sagaLogRepository.updateStatusIfMatches(sagaId, SagaStatus.COMPLETED, SagaStatus.COMPENSATING);
+        int completedUpdated = sagaLogRepository.updateStatusIfMatches(sagaId, SagaStatus.COMPLETED,
+                SagaStatus.COMPENSATING);
         if (completedUpdated == 0) {
             return;
         }
@@ -306,17 +309,17 @@ public class CartCommandService {
     }
 
     public void emptyCart(Long userId) {
-        Cart cart = cartCommandRepository.findByUserId(userId).orElseThrow(() ->
-                new RuntimeException("No cart found for user " + userId));
+        Cart cart = cartCommandRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("No cart found for user " + userId));
         clearCart(cart.getId());
     }
 
     public void fillCart(OrderCreatedPayload payload) {
         for (OrderItem o : payload.getOrderItems()) {
             this.addProductToCart(AddToCartRequest.builder()
-                            .userId(Long.parseLong(payload.getUserId()))
-                            .productId(o.getProductId())
-                            .quantity(o.getQuantity())
+                    .userId(Long.parseLong(payload.getUserId()))
+                    .productId(o.getProductId())
+                    .quantity(o.getQuantity())
                     .build());
         }
     }
@@ -355,10 +358,8 @@ public class CartCommandService {
                         cart.getItems().stream()
                                 .map(i -> new CartCheckedOutEvent.Item(
                                         i.getProductId(),
-                                        i.getQuantity()
-                                ))
-                                .toList()
-                )
+                                        i.getQuantity()))
+                                .toList())
                 .build();
 
         // Publish event
@@ -367,7 +368,8 @@ public class CartCommandService {
         // Clear cart
         cart.getItems().clear();
         Cart saved = cartCommandRepository.save(cart);
-        cartSyncPublisher.publish(CommandQuerySyncEvent.builder().cartId(saved.getId()).userId(saved.getUserId()).type(EventType.CLEAR).build());
+        cartSyncPublisher.publish(CommandQuerySyncEvent.builder().cartId(saved.getId()).userId(saved.getUserId())
+                .type(EventType.CLEAR).build());
     }
 
 }
