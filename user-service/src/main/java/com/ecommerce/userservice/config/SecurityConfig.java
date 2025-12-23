@@ -42,8 +42,7 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-resources/**").permitAll()
                         .requestMatchers("/webjars/**").permitAll()
                         .requestMatchers("/api/v1/users/auth/**").permitAll()
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated())
                 .addFilterBefore(headerFilterAuth(), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
@@ -53,17 +52,16 @@ public class SecurityConfig {
         return new OncePerRequestFilter() {
 
             private final List<String> publicPaths = List.of(
-                    "/swagger-ui/",
+                    "/swagger-ui",
                     "/v3/api-docs",
-                    "/swagger-resources/",
-                    "/webjars/",
-                    "/api/v1/users/auth/"
-            );
+                    "/swagger-resources",
+                    "/webjars",
+                    "/api/v1/users/auth");
 
             @Override
             protected void doFilterInternal(HttpServletRequest request,
-                                            HttpServletResponse response,
-                                            FilterChain filterChain) throws ServletException, IOException {
+                    HttpServletResponse response,
+                    FilterChain filterChain) throws ServletException, IOException {
                 String path = request.getRequestURI();
                 if (publicPaths.stream().anyMatch(path::startsWith)) {
                     filterChain.doFilter(request, response);
@@ -80,8 +78,7 @@ public class SecurityConfig {
                 Authentication authentication = new UsernamePasswordAuthenticationToken(
                         userId,
                         null,
-                        List.of(authority)
-                );
+                        List.of(authority));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
                 filterChain.doFilter(request, response);
             }
