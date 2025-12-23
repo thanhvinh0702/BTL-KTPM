@@ -9,8 +9,14 @@ const OrderDetails = () => {
     const [deleted, setDeleted] = useState(false);
     const [allOrder, setAllOrder] = useState([]);
 
-    const handleMakePayment = (orderid) => {
+
+    // Thêm tham số amount vào hàm
+    const handleMakePayment = (orderid, amount) => {
         localStorage.setItem("orderid", orderid);
+
+        // Lưu totalAmount vào localStorage
+        localStorage.setItem("totalAmount", amount);
+
         navigate("/user/make-payment");
     };
 
@@ -107,7 +113,7 @@ const OrderDetails = () => {
                                     {/* LOGIC NÚT THANH TOÁN: Chỉ hiện nếu chưa thanh toán và chưa hủy */}
                                     {order.status === "PENDING" ? (
                                         <button
-                                            onClick={() => handleMakePayment(order.orderId)}
+                                            onClick={() => handleMakePayment(order.orderId,order.orderAmount || order.totalAmount || 0 )}
                                             style={{ marginLeft: "10px" }}
                                         >
                                             Make Payment

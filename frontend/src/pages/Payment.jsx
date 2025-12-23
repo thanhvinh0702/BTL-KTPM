@@ -15,6 +15,7 @@ const Payment = () => {
   const [paymentData, setPaymentData] = useState({});
   const userid = localStorage.getItem("userid");
   const orderid = localStorage.getItem("orderid");
+  const totalAmount = localStorage.getItem("totalAmount")
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,7 +24,7 @@ const Payment = () => {
     api.post("/payments/makePayment", {
       orderId: orderid,
       userId: userid,
-      amount: 0,
+      amount: totalAmount,
       paymentMethod: "CASH"
     })
         .then((response) => {

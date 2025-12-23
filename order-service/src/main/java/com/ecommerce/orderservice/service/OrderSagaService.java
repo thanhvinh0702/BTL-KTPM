@@ -1,6 +1,10 @@
 package com.ecommerce.orderservice.service;
 
 import com.ecommerce.orderservice.model.OrderSaga;
+import com.ecommerce.orderservice.model.OrderStatus;
+import com.ecommerce.orderservice.model.Orders;
+import com.ecommerce.orderservice.model.SagaStatus;
+import com.ecommerce.orderservice.repository.OrderRepository;
 import com.ecommerce.orderservice.repository.OrderSagaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -13,7 +17,7 @@ import java.util.Optional;
 public class OrderSagaService {
 
     private final OrderSagaRepository orderSagaRepository;
-
+    private final OrderRepository orderRepository;
     @Transactional
     public OrderSaga updateSaga(String sagaId, OrderSaga update) {
         Optional<OrderSaga> optionalSaga = orderSagaRepository.findByIdForUpdate(sagaId);
@@ -35,6 +39,19 @@ public class OrderSagaService {
         }
         if (update.getDeliveryStatus() != null) {
             existing.setDeliveryStatus(update.getDeliveryStatus());
+        }
+
+        OrderSaga savedSaga = orderSagaRepository.save(existing);
+        if (savedSaga.getPaymentStatus() == SagaStatus.COMPLETED &&
+                savedSaga.getProductStatus() == SagaStatus.COMPLETED &&
+                savedSaga.getCartStatus() == SagaStatus.COMPLETED) {
+
+            orderRepository.findById(savedSaga.getOrderId()).ifPresent(order -> {
+                if (order.getStatus() != OrderStatus.CONFIRMED) {
+                    order.setStatus(OrderStatus.CONFIRMED);
+                    orderRepository.save(order); // Lưu xuống DB để hiện lên Web
+                }
+            });
         }
 
         return orderSagaRepository.save(existing);
