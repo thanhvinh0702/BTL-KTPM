@@ -26,7 +26,7 @@ const Address = ({ onclose }) => {
     e.preventDefault()
     console.log(address);
     api
-      .post(`/ecom/customer-addresses/${userid}`, address)
+      .post(`/api/v1/users/${userid}/address`, address)
       .then((response) => {
         alert("Address Addeded Succesfully..");
         navigate(`/user/profile/${userid}`);

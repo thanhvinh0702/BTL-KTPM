@@ -19,22 +19,33 @@ const Payment = () => {
 
   useEffect(() => {
     document.title = 'Ecommerse | Payment';
-    api
-      .post(
-        `/ecom/order-payments/makePayment?orderId=${orderid}&userId=${userid}`
-      )
-      .then((response) => { // Fix the typo here (reponse -> response)
-        setPaymentData(response.data);
-      })
-      .catch((error) => {
-        console.error("Error fetching data from the API: ", error);
-      });
-  }, [userid, orderid]);
 
+    api.post("/payments/makePayment", {
+      orderId: orderid,
+      userId: userid,
+      amount: 0,
+      paymentMethod: "CASH"
+    })
+        .then((response) => {
+          setPaymentData(response.data);
+        })
+        .catch((error) => {
+          console.error("Error fetching data from the API: ", error);
+        });
+
+    const timer = setTimeout(() => {
+      navigate("/");
+    }, 1000);
+
+    return () => clearTimeout(timer);
+
+  }, [userid, orderid, navigate]);
+
+  /***
   setTimeout(() => {
     navigate("/");
   }, 1000);
-
+***/
   return (
     <div className="payment-container" style={bg}>
       <div className="payment-card">

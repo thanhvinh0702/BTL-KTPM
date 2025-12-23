@@ -17,7 +17,7 @@ const Profile = () => {
   const [addressModal, setAddressModal] = useState(false);
   const [updateaddressModal, setUpdateAddressModal] = useState(false);
   const [showPassSection, setShowPassSection] = useState(false);
-  const [passform, setNewPassword1] = useState("");
+  const [passform, setNewPassword1] = useState({ newpass: "" });
   const [error, setError] = useState(null);
 
   const handleChange = (e) => {
@@ -61,7 +61,7 @@ const Profile = () => {
 
   useEffect(() => {
     api
-      .get(`/ecom/customers/${userid}`)
+      .get(`/api/v1/users/${userid}`)
       .then((response) => {
         setProfileData(response.data);
         setAddressModal(false);
@@ -73,9 +73,7 @@ const Profile = () => {
 
 
   const {newpass}=passform;
-  const latestAddress = profileData?.address?.length
-    ? profileData.address[profileData.address.length - 1]
-    : null;
+  const latestAddress = profileData?.address;
 
   return (
     <>
@@ -97,9 +95,9 @@ const Profile = () => {
       >
         <div className="profile-container">
           {addressModal && <Address onclose={showAddAddressModal} />}
-          {updateaddressModal && (
-            <UpdateAddress address={add} onclose={showAddAddressModal} />
-          )}
+            {updateaddressModal && (
+                <UpdateAddress address={add} onclose={showUpdateAddAddressModal} />
+            )}
 
           <div className="profile-details">
             <h1 className="profile-header">Profile Details</h1>
@@ -120,10 +118,6 @@ const Profile = () => {
 
                 <p>
                   <strong>Phone Number:</strong> {profileData.phoneNumber}
-                </p>
-                <p>
-                  <strong>Registration :</strong>{" "}
-                  {profileData.registerTime.substring(0, 10)}
                 </p>
               </>
             ) : (
