@@ -11,6 +11,7 @@ import org.springframework.data.mongodb.config.EnableMongoAuditing;
 public class CartServiceApplication {
 
     public static void main(String[] args) {
+        System.setProperty("user.timezone", "Asia/Ho_Chi_Minh");
         var ctx = SpringApplication.run(CartServiceApplication.class, args);
 
         System.out.println("Mongo URI: " + ctx.getEnvironment().getProperty("spring.data.mongodb.uri"));
