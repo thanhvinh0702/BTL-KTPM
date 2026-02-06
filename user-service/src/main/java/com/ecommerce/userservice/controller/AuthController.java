@@ -16,6 +16,10 @@ import java.util.Map;
 @AllArgsConstructor
 public class AuthController {
     private final UserService service;
+    @GetMapping("/ping")
+    public ResponseEntity<String> ping(){
+        return new ResponseEntity<String>("Ping",HttpStatus.OK );
+    }
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest registerRequest) {

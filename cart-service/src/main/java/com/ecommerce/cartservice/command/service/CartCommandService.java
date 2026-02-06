@@ -1,5 +1,6 @@
 package com.ecommerce.cartservice.command.service;
 
+
 import com.ecommerce.cartservice.client.ProductClient;
 import com.ecommerce.cartservice.command.dto.request.AddToCartRequest;
 import com.ecommerce.cartservice.command.dto.response.CartResponse;
@@ -28,6 +29,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationAdapter;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,6 +57,7 @@ public class CartCommandService {
     /**
      * Add product to cart
      */
+    @Bulkhead(name = "productDetailBulkhead", fallbackMethod = "addProductFallback")
     public CartResponse addProductToCart(AddToCartRequest request) {
         // Find or create cart
         Cart cart = cartCommandRepository.findByUserId(request.getUserId())
@@ -121,10 +124,14 @@ public class CartCommandService {
 
         return CartMapper.toResponse(cart);
     }
+    public CartResponse addProductFallback(AddToCartRequest request, Throwable t) {
+        throw new RuntimeException("Hệ thống sản phẩm đang bận. Vui lòng thử lại sau.");
+    }
 
     /**
      * Change product quantity
      */
+    @Bulkhead(name = "productDetailBulkhead", fallbackMethod = "changeQuantityFallback")
     public CartResponse changeProductQuantity(String cartId, Long productId, int delta) {
 
         Cart cart = cartCommandRepository.findById(cartId)
@@ -176,6 +183,7 @@ public class CartCommandService {
         return CartMapper.toResponse(cart);
     }
 
+
     /**
      * Remove a product
      */
@@ -192,6 +200,10 @@ public class CartCommandService {
                 .build());
 
         return CartMapper.toResponse(cart);
+    }
+    // [THÊM] Hàm Fallback nằm ngay dưới hàm changeProductQuantity
+    public CartResponse changeQuantityFallback(String cartId, Long productId, int delta, Throwable t) {
+        throw new RuntimeException("Không thể cập nhật số lượng lúc này. Vui lòng thử lại sau.");
     }
 
     /**
@@ -323,7 +335,7 @@ public class CartCommandService {
                     .build());
         }
     }
-
+    @Bulkhead(name = "productDetailBulkhead", fallbackMethod = "checkoutFallback")
     public void checkout(String cartId) {
         Cart cart = cartCommandRepository.findById(cartId)
                 .orElseThrow(() -> new NotFoundException("Cart not found"));
@@ -370,6 +382,10 @@ public class CartCommandService {
         Cart saved = cartCommandRepository.save(cart);
         cartSyncPublisher.publish(CommandQuerySyncEvent.builder().cartId(saved.getId()).userId(saved.getUserId())
                 .type(EventType.CLEAR).build());
+    }
+    // [THÊM] Hàm Fallback nằm ngay dưới hàm checkout
+    public void checkoutFallback(String cartId, Throwable t) {
+        throw new RuntimeException("Hệ thống thanh toán đang quá tải. Vui lòng quay lại sau ít phút.");
     }
 
 }

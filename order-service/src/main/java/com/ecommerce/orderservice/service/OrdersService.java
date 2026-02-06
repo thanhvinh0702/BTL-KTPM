@@ -2,6 +2,7 @@ package com.ecommerce.orderservice.service;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 import com.ecommerce.orderservice.dto.*;
 import com.ecommerce.orderservice.mapper.OrderMapper;
@@ -10,6 +11,7 @@ import com.ecommerce.orderservice.publisher.OrderEventPublisher;
 import com.ecommerce.orderservice.repository.OrderRepository;
 import com.ecommerce.orderservice.client.CartClient;
 import com.ecommerce.orderservice.repository.OrderSagaRepository;
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +33,13 @@ public class OrdersService {
     private final OrderEventPublisher orderEventPublisher;
     private final OrderSagaRepository orderSagaRepository;
 
+    // Hàm Fallback (Trả về Orders hoặc ném lỗi)
+    public Orders placeOrderFallback(String userId, Throwable t) {
+        throw new RuntimeException("Hệ thống quá tải, không thể kết nối giỏ hàng!");
+    }
+
     @Transactional
+    @Bulkhead(name = "cartInteractionBulkhead", fallbackMethod = "placeOrderFallback")
     public Orders placeOrder(String userId){
         // Check currently processing order
         Optional<OrderSaga> latestSagaOpt = orderSagaRepository.findFirstByUserIdOrderByCreatedAtDesc(userId);

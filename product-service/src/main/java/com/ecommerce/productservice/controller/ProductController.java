@@ -25,6 +25,15 @@ public class ProductController {
     @GetMapping
     public ResponseEntity<List<Product>> findAllProduct(@RequestParam(required = false) String category,
                                                         @RequestParam(required = false) String name) {
+        // --- BẮT ĐẦU ĐOẠN CODE TEST BULKHEAD ---
+        try {
+            // Giả lập service bị treo 5 giây
+            System.out.println("Processing request... (Delaying 5s)");
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        // --- KẾT THÚC ĐOẠN CODE TEST BULKHEAD ---
         return ResponseEntity.ok(productService.findProducts(category, name));
     }
 
